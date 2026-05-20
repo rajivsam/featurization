@@ -1,0 +1,27 @@
+# Data Dictionary Summary Paths
+dd_parsing_output_dir: "dd_analysis_results"
+dd_parsing_summary_file: "sba_analysis_results.csv"
+
+# Cleaned Data Input Paths
+dd_cleaner_output_dir: "dd_cleaner_results"
+cleaned_file_from_dd_cleaner: "feature_selection_ready.csv"
+
+# Featurization Output Artifact Paths
+featurization_output_dir: "featurization"
+featurization_output_file: "featurized_data.csv"
+
+# New Documentation Configurable Target Output Paths
+feat_doc_directory: "featurization_docs"
+entity_assignment_output: "entity_assignments.md"
+
+# Attribute Exclusion Filter Parameters
+exclude_attributes:
+  - "internal_row_id"
+  - "legacy_status_code"
+
+# Implicit pattern to capture standard date/time stamps
+exclude_regex: "(_at|_dt|date|time|timestamp)"
+
+# Gating Thresholds
+importance_threshold: 0.05
+country_code: "us"

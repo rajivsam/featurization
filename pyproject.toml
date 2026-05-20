@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "featurization"
+version = "0.1.0"
+description = "Per-Entity Proxy-First Geographic Gating and Featurization for kmds-data-helper"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "geopy",
+    "pgeocode",
+    "pyyaml"
+]
+
+[project.scripts]
+compute-features = "featurization.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/featurization"]

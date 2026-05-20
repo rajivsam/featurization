@@ -1,0 +1,11 @@
+.venv/
+uv.lock
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+dist/
+documents/
+*.csv
+parser_run.log
+.vscode/
