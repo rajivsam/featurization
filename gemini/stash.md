@@ -1,5 +1,4 @@
 ---
-
 ## 🗃️ KMDS Featurization Package: Context Pick-Up Stash
 
 ## 📦 Package Identity & Environment
@@ -8,9 +7,7 @@
 * Build System: `hatchling` (configured inside `pyproject.toml`).
 * Environment Manager: `uv` (installed dependencies: `pandas`, `numpy`, `scikit-learn`, `geopy`, `pgeocode`, `pyyaml`).
 * CLI Command Entry Point: `compute-features --working-dir <path> --target-col <col>` mapped directly to `src/featurization/cli.py:main`.
-
 ---
-
 ## 📂 Active Workspace Paths & Configurations
 
 The active configuration is saved at `/home/rajiv/programming/featurization/config.yaml`:
@@ -66,7 +63,3 @@ When resuming, we will focus entirely on implementing Proxy-First Geo-Gating in 
 1. Address Composition Strategy: Determine how to programmatically combine fields (e.g., merging `BorrStreet` + `BorrCity` + `BorrZip` into a unified lookup string) for `geopy` (Nominatim) or fallback directly to `pgeocode` for zipcode-only extractions.
 2. Coordinate Generation Execution: Build the loops to generate one pair of proxy latitude/longitude fields for each valid entity group.
 3. Feature Selection Gate: Build the `scikit-learn` `RandomForestRegressor` baseline to measure feature importance against the user-specified `--target-col` and apply the `importance_threshold` gate.
-
----
-
-Save this block safely, and let me know when you are ready to spin up the geocoding engine!
