@@ -5,7 +5,7 @@ Use this document as the first-read initialization context for coding sessions.
 ## Session Start Checklist
 1. Read this file first, then read active docs listed in Canonical Context.
 2. Confirm current pair of baseline commits:
-    - Package repo: 01efb9c
+    - Package repo: d7c487d
     - Workspace repo: 4ef0bc5
 3. Confirm stage contract remains method(context, stage_cfg) -> DataFrame.
 4. Confirm active categorical suffix is _rcs.
@@ -38,21 +38,34 @@ Use this document as the first-read initialization context for coding sessions.
 ## Current Stage Inventory
 1. record_id_definition
 2. borrower_geo_coding
-3. low_count_featurization_of_cat_vars
-4. hierarchical_low_count_var_encoding
-5. loan_status_recoding
-6. filter_modeling_universe
-7. stratified_train_val_split
-8. target_encode_categorical_vars
-9. harmonize_and_project_feature_space
-10. merge_modeled_and_active_partitions
+3. prepare_categorical_data
+4. prepare_numerical_data
+5. merge_categorical_and_numerical
+6. merge_with_borrower_geo
+7. low_count_featurization_of_cat_vars
+8. hierarchical_low_count_var_encoding
+9. loan_status_recoding
+10. filter_modeling_universe
+11. stratified_train_val_split
+12. target_encode_categorical_vars
+13. harmonize_and_project_feature_space
+14. merge_modeled_and_active_partitions
 
 ## Current Stage Semantics
 - record_id_definition:
     - Creates record_id if missing and returns it for index promotion.
 - borrower_geo_coding:
     - Fallback chain is ZIP -> CITY -> STATE centroid.
+    - Geo attributes sourced from metadata tag is_geographic with sub-filter Borrower.
     - Returns borrower_latitude and borrower_longitude.
+- prepare_categorical_data:
+    - Builds categorical payload without row filtering.
+- prepare_numerical_data:
+    - Builds numerical payload without row filtering.
+- merge_categorical_and_numerical:
+    - Index-based tabular merge for categorical + numerical payloads.
+- merge_with_borrower_geo:
+    - Index-based tabular merge for structured payload + borrower geo.
 - low_count_featurization_of_cat_vars:
     - Two-pass logic: roll rare levels to OTHERS, then enforce support sequentially.
     - Rows with insufficient OTHERS support are dropped immediately in-stage.
@@ -73,7 +86,9 @@ Use this document as the first-read initialization context for coding sessions.
     - Fits TargetEncoder on train only.
     - Transforms modeling and active holdout with same train-fitted encoder.
 - harmonize_and_project_feature_space:
-    - Selects canonical features on train using non-null/uniqueness thresholds.
+    - Selects canonical features on train using configured method:
+        - threshold mode, or
+        - tree_ensemble mode (gbm/random_forest/xgboost).
     - Projects modeled and active data into one aligned schema.
 - merge_modeled_and_active_partitions:
     - Merges projected modeled and active partitions into one output dataset.
@@ -86,13 +101,18 @@ Use this document as the first-read initialization context for coding sessions.
 - Only final merge stage may intentionally re-introduce indices (active partition), via allow_new_indices.
 
 ## Validation Baseline
-- test file: tests/test_sba_pipeline.py
-- latest status: passing after _rcs suffix update and status mapping stabilization.
+- test files:
+    - tests/test_sba_pipeline.py
+    - tests/test_merge_ops.py
+- latest status: passing for merge package component + hybrid pipeline + tree-based selection wiring.
 
 ## Next Implementation Boundary
 - Current session endpoint: produce model_ready_numeric_data.csv from full pipeline run.
-- Current feature selection mode: threshold-based preselection only.
-- Next planned upgrade: model-based feature selection (XGBoost or Random Forest wrapper), fit on train only and reused for val/active.
+- Current feature selection mode: config-driven threshold or tree_ensemble.
+- Tree selector parameters are wired through:
+    - featurizer_config.yaml
+    - src/featurization/core/path_coordinator.py
+    - src/featurization/core/featurization_init.py
 
 ## Two-Repo Workflow (Package + Workspace)
 - Purpose:
@@ -111,7 +131,7 @@ Use this document as the first-read initialization context for coding sessions.
     - If change affects both: make two commits, one per repo, and reference the paired hash in commit messages.
 
 - Baseline pairing for this state:
-    - Package baseline commit: 01efb9c
+    - Package baseline commit: d7c487d
     - Workspace baseline commit: 4ef0bc5
 
 - Recommended dev loop:
@@ -124,5 +144,19 @@ Use this document as the first-read initialization context for coding sessions.
 - Future testing direction:
     - Create a dedicated integration-test workspace cloned from SBA migration when package API stabilizes.
     - Keep synthetic/unit tests in package repo; keep real-data integration tests in workspace clone.
+
+## Session Sign-Off (2026-06-10)
+- Completed in package repo:
+    - Hybrid front section (categorical/numerical/geo prep + two merges).
+    - Tree-based feature selection integration with config-driven parameters.
+    - Merge promoted to package component: src/tabular/merge_ops.py.
+    - Documentation refresh: README + pipeline/config/path docs.
+    - Added merge unit tests: tests/test_merge_ops.py.
+- Validation run:
+    - pytest -q tests/test_merge_ops.py tests/test_sba_pipeline.py
+    - Result: passing.
+- Repo state:
+    - Package repo committed and pushed (d7c487d).
+    - SBA workspace repo intentionally left untouched.
 
 Last updated: 2026-06-10
