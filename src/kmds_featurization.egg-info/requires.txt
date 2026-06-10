@@ -3,4 +3,5 @@ numpy
 pyyaml
 scikit-learn
 pgeocode
+category-encoders
 tabulate>=0.10.0

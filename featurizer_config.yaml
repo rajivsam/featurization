@@ -13,16 +13,57 @@ pipeline:
     entity: "categorical"
     sub_filter: "low_count"
     drop_filter: ["loanstatus", "naicscode"]
+  - name: "Hierarchical NAICS Recoding"
+    method: "hierarchical_low_count_var_encoding"
+    entity: "categorical"
+    sub_filter: "naics"
+    source_col: "naicscode"
+    output_col: "naicscode_rcs"
+    mask_char: "*"
   - name: "Loan Status Recoding"
     method: "loan_status_recoding"
     entity: "System"
     sub_filter: "Loan"
+  - name: "Filter Modeling Universe"
+    method: "filter_modeling_universe"
+    entity: "System"
+    sub_filter: "Loan"
+    target_col: "loan_status_r"
+    drop_class: -1
+  - name: "Train Validation Split"
+    method: "stratified_train_val_split"
+    entity: "System"
+    sub_filter: "Loan"
+    target_col: "loan_status_r"
+    split_col: "dataset_split"
+    random_state: 42
+  - name: "Target Encode Categoricals"
+    method: "target_encode_categorical_vars"
+    entity: "categorical"
+    sub_filter: "modeling"
+    target_col: "loan_status_r"
+    split_col: "dataset_split"
+    output_suffix: "_te"
+  - name: "Harmonize And Project Feature Space"
+    method: "harmonize_and_project_feature_space"
+    entity: "System"
+    sub_filter: "modeling"
+    target_col: "loan_status_r"
+    split_col: "dataset_split"
+    output_partition_col: "dataset_partition"
+    min_unique: 2
+  - name: "Merge Modeled And Active Partitions"
+    method: "merge_modeled_and_active_partitions"
+    entity: "System"
+    sub_filter: "modeling"
+    allow_new_indices: true
 metadata_file: sba_loans_metadata_table.csv
 dd_cleaner_output_dir: dd_cleaner
 featurization_input_data: sba_loans_user_cleaned.csv
 featurization_output_dir: featurization
 quarantine_dir: featurization/quarantine
 featurized_data_file: featurized_data.csv
+model_ready_data_file: model_ready_numeric_data.csv
 feat_doc_directory: featurization_docs
 entity_assignment_output: entity_assignments.md
 script_dir: featurization_scripts
@@ -30,3 +71,6 @@ script_name: featurization.py
 country_code: us
 structural_type: cross-sectional
 MIN_SUPPORT_THRESHOLD_CAT_VARS: 5
+VALIDATION_SIZE: 0.2
+FEATURE_SELECTION_MIN_NON_NULL_RATE: 0.01
+MODEL_READY_NUMERIC_ONLY: true

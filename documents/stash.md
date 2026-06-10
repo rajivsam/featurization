@@ -2,6 +2,17 @@
 
 Use this document as the first-read initialization context for coding sessions.
 
+## Session Start Checklist
+1. Read this file first, then read active docs listed in Canonical Context.
+2. Confirm current pair of baseline commits:
+    - Package repo: 01efb9c
+    - Workspace repo: 4ef0bc5
+3. Confirm stage contract remains method(context, stage_cfg) -> DataFrame.
+4. Confirm active categorical suffix is _rcs.
+5. Confirm current input data anchor is data/dd_cleaner/sba_loans_user_cleaned.csv.
+6. Run package test smoke check: tests/test_sba_pipeline.py.
+7. Route new changes using the Two-Repo Workflow rules below before committing.
+
 ## Canonical Context
 - Active architecture docs:
     - documents/sba_pipeline_featurization.md
@@ -28,7 +39,13 @@ Use this document as the first-read initialization context for coding sessions.
 1. record_id_definition
 2. borrower_geo_coding
 3. low_count_featurization_of_cat_vars
-4. loan_status_recoding
+4. hierarchical_low_count_var_encoding
+5. loan_status_recoding
+6. filter_modeling_universe
+7. stratified_train_val_split
+8. target_encode_categorical_vars
+9. harmonize_and_project_feature_space
+10. merge_modeled_and_active_partitions
 
 ## Current Stage Semantics
 - record_id_definition:
@@ -40,19 +57,72 @@ Use this document as the first-read initialization context for coding sessions.
     - Two-pass logic: roll rare levels to OTHERS, then enforce support sequentially.
     - Rows with insufficient OTHERS support are dropped immediately in-stage.
     - Output categorical suffix is _rcs (recoded for support).
+- hierarchical_low_count_var_encoding:
+    - NAICS-focused hierarchical low-support recoding via right-side masking.
+    - Output column is naicscode_rcs.
 - loan_status_recoding:
     - Maps statuses to {-1, 0, 1}.
     - Uses expanded matching for active/closed/distressed operational labels.
     - Raises on truly unknown labels to protect integrity.
+- filter_modeling_universe:
+    - Drops active class (-1) from modeling survivors.
+    - Preserves active rows in context for downstream scoring/reconciliation.
+- stratified_train_val_split:
+    - Adds dataset_split train/val using VALIDATION_SIZE.
+- target_encode_categorical_vars:
+    - Fits TargetEncoder on train only.
+    - Transforms modeling and active holdout with same train-fitted encoder.
+- harmonize_and_project_feature_space:
+    - Selects canonical features on train using non-null/uniqueness thresholds.
+    - Projects modeled and active data into one aligned schema.
+- merge_modeled_and_active_partitions:
+    - Merges projected modeled and active partitions into one output dataset.
 
 ## Guardrails
 - Do not hardcode filesystem paths inside stage logic; use context-resolved inputs.
 - Do not mutate source data files.
 - Prefer real dataset validation over mocked data.
 - Keep stage outputs index-aligned with current survivor universe.
+- Only final merge stage may intentionally re-introduce indices (active partition), via allow_new_indices.
 
 ## Validation Baseline
 - test file: tests/test_sba_pipeline.py
 - latest status: passing after _rcs suffix update and status mapping stabilization.
+
+## Next Implementation Boundary
+- Current session endpoint: produce model_ready_numeric_data.csv from full pipeline run.
+- Current feature selection mode: threshold-based preselection only.
+- Next planned upgrade: model-based feature selection (XGBoost or Random Forest wrapper), fit on train only and reused for val/active.
+
+## Two-Repo Workflow (Package + Workspace)
+- Purpose:
+    - Keep framework evolution isolated in the featurization package repo.
+    - Keep real-data stage logic and integration outputs in the SBA workspace repo.
+
+- Repo roles:
+    - Package repo (/home/rajiv/programming/featurization):
+        - Owns runner/core interfaces, path coordination, package tests, and docs/stash.
+    - Workspace repo (/home/rajiv/programming/dd_parser_cleaner_migration/sba_migration):
+        - Owns featurization_scripts/featurization.py, real data config, and end-to-end integration runs.
+
+- Change routing rule:
+    - If change affects orchestration/contracts: commit in package repo.
+    - If change affects domain stage behavior for SBA: commit in workspace repo.
+    - If change affects both: make two commits, one per repo, and reference the paired hash in commit messages.
+
+- Baseline pairing for this state:
+    - Package baseline commit: 01efb9c
+    - Workspace baseline commit: 4ef0bc5
+
+- Recommended dev loop:
+    1. Modify package code in featurization repo.
+    2. Run package tests there.
+    3. Validate integrated behavior from SBA workspace using real data and featurizer_config.yaml.
+    4. Commit package changes first, workspace changes second.
+    5. Record both hashes in this stash when contract-level behavior changes.
+
+- Future testing direction:
+    - Create a dedicated integration-test workspace cloned from SBA migration when package API stabilizes.
+    - Keep synthetic/unit tests in package repo; keep real-data integration tests in workspace clone.
 
 Last updated: 2026-06-10

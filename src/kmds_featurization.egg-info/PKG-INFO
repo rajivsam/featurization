@@ -7,4 +7,5 @@ Requires-Dist: numpy
 Requires-Dist: pyyaml
 Requires-Dist: scikit-learn
 Requires-Dist: pgeocode
+Requires-Dist: category-encoders
 Requires-Dist: tabulate>=0.10.0

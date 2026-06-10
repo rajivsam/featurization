@@ -27,6 +27,21 @@ class PathCoordinator:
         return self.config.get("structural_type", "cross-sectional")
 
     @property
+    def validation_size(self) -> float:
+        """Returns validation fraction used for train/validation splitting."""
+        return float(self.config.get("VALIDATION_SIZE", 0.2))
+
+    @property
+    def feature_selection_min_non_null_rate(self) -> float:
+        """Returns minimum non-null rate threshold used for feature selection."""
+        return float(self.config.get("FEATURE_SELECTION_MIN_NON_NULL_RATE", 0.01))
+
+    @property
+    def model_ready_numeric_only(self) -> bool:
+        """Returns whether model-ready export should contain numeric columns only."""
+        return bool(self.config.get("MODEL_READY_NUMERIC_ONLY", True))
+
+    @property
     def metadata_file(self) -> str:
         """Returns the filename for the metadata table."""
         return self.config.get("metadata_file", "sba_loans_metadata_table.csv")
@@ -40,6 +55,11 @@ class PathCoordinator:
     def featurized_data_file(self) -> str:
         """Returns the filename for the featurized output data."""
         return self.config.get("featurized_data_file", "featurized_data.csv")
+
+    @property
+    def model_ready_data_file(self) -> str:
+        """Returns the filename for model-ready post-selection output data."""
+        return self.config.get("model_ready_data_file", "model_ready_numeric_data.csv")
 
     @property
     def metadata_path(self) -> str:
@@ -65,6 +85,15 @@ class PathCoordinator:
         feat_dir = self.config.get("featurization_output_dir", "featurization")
         feat_dir = self._remove_anchor_prefix(feat_dir, "data")
         feat_file = self.featurized_data_file
+        abs_dir = os.path.join(self.working_dir, "data", feat_dir)
+        return os.path.join(abs_dir, feat_file)
+
+    @property
+    def model_ready_dataset_path(self) -> str:
+        """Output path for model-ready post-selection numeric dataset."""
+        feat_dir = self.config.get("featurization_output_dir", "featurization")
+        feat_dir = self._remove_anchor_prefix(feat_dir, "data")
+        feat_file = self.model_ready_data_file
         abs_dir = os.path.join(self.working_dir, "data", feat_dir)
         return os.path.join(abs_dir, feat_file)
 

@@ -95,6 +95,7 @@ class PipelineRunner:
         spec.loader.exec_module(module)
 
         accumulated_dfs = []
+        last_stage_df: Optional[pd.DataFrame] = None
 
         # (3) Iterate pipeline section and call defined methods
         pipeline_cfg = config.get("pipeline") or []
@@ -123,14 +124,27 @@ class PipelineRunner:
                         self.context['data'].index = df_result.index
                         self.context['data'].index.name = 'record_id'
 
-                    # Non-Trivial Validation: Ensure the result index is a subset of current context
+                    # Non-Trivial Validation: by default, a stage may only return
+                    # indices from the current survivor universe.
+                    allow_new_indices = bool(stage_cfg.get("allow_new_indices", False))
                     if not df_result.index.isin(self.context['data'].index).all():
-                        raise ValueError(
-                            f"Critical Integrity Error in stage '{stage_cfg['name']}': "
-                            f"Stage introduced new indices not present in the current survivor universe."
-                        )
+                        if not allow_new_indices:
+                            raise ValueError(
+                                f"Critical Integrity Error in stage '{stage_cfg['name']}': "
+                                f"Stage introduced new indices not present in the current survivor universe."
+                            )
+
+                        expanded_index = self.context['data'].index.union(df_result.index)
+                        self.context['data'] = self.context['data'].reindex(expanded_index)
+
+                    # Merge stage outputs into context so downstream stages can
+                    # consume derived features (e.g. split flags, recoded targets).
+                    if not df_result.empty and len(df_result.columns) > 0:
+                        for col in df_result.columns:
+                            self.context['data'].loc[df_result.index, col] = df_result[col]
 
                     accumulated_dfs.append(df_result)
+                    last_stage_df = df_result
                     
                     # Stage-wise Initialization (Waterfall Filtering):
                     # Downstream stages only see records that 'survived' this stage.
@@ -161,4 +175,17 @@ class PipelineRunner:
 
         print(f"✅ Pipeline complete. Resulting dataset shape: {final_df.shape}")
         print(f"💾 Featurized data persisted to: {output_path}")
+
+        # Persist model-ready export derived from final stage output.
+        if last_stage_df is not None and not last_stage_df.empty:
+            model_ready_df = last_stage_df.copy()
+            if resolver.model_ready_numeric_only:
+                model_ready_df = model_ready_df.select_dtypes(include=["number", "bool"]).copy()
+
+            model_ready_df = model_ready_df.sort_index(ascending=True)
+            model_ready_path = resolver.model_ready_dataset_path
+            os.makedirs(os.path.dirname(model_ready_path), exist_ok=True)
+            model_ready_df.to_csv(model_ready_path)
+            print(f"💾 Model-ready data persisted to: {model_ready_path}")
+
         return final_df

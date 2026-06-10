@@ -26,12 +26,18 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
         "featurization_output_dir": existing_config.get("featurization_output_dir", "featurization"),
         "quarantine_dir": existing_config.get("quarantine_dir", "featurization/quarantine"),
         "featurized_data_file": existing_config.get("featurized_data_file", "featurized_data.csv"),
+        "model_ready_data_file": existing_config.get("model_ready_data_file", "model_ready_numeric_data.csv"),
         "feat_doc_directory": existing_config.get("feat_doc_directory", "featurization_docs"),
         "entity_assignment_output": existing_config.get("entity_assignment_output", "entity_assignments.md"),
         "script_dir": existing_config.get("script_dir", "featurization_scripts"), # New script directory key
         "script_name": existing_config.get("script_name", "featurization.py"),   # New script file name key
         "country_code": existing_config.get("country_code", "us"),
-        "structural_type": structural_type
+        "structural_type": structural_type,
+        "VALIDATION_SIZE": existing_config.get("VALIDATION_SIZE", 0.2),
+        "FEATURE_SELECTION_MIN_NON_NULL_RATE": existing_config.get(
+            "FEATURE_SELECTION_MIN_NON_NULL_RATE", 0.01
+        ),
+        "MODEL_READY_NUMERIC_ONLY": existing_config.get("MODEL_READY_NUMERIC_ONLY", True)
     }
 
     # 3. Preserve any custom stage definitions or extra settings from the existing config

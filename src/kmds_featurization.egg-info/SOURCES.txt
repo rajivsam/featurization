@@ -20,7 +20,11 @@ src/kmds_featurization.egg-info/top_level.txt
 src/tabular/__init__.py
 src/tabular/attribute_derivation.py
 src/tabular/entity_tagging.py
+src/tabular/hierarchical_low_count_var_encoding.py
 src/tabular/low_count_cat_var_encoding.py
+src/tabular/modeling_filter.py
+src/tabular/target_encoding.py
+src/tabular/train_val_split.py
 tests/test_initialization.py
 tests/test_sba_pipeline.py
 tests/test_utils.py

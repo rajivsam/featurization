@@ -1,128 +1,178 @@
-# SBA Featurization Pipeline: Stage Specifications
+# SBA Featurization Pipeline: End-to-End Stage Specification
 
-## Core Architecture: The Waterfall Model
-The pipeline is built on an **Index-Centric Waterfall** model. A key principle of this design is that **filtration is done by each stage**, ensuring that each subsequent stage only receives the survivors from all preceding steps. This ensures the data universe is progressively refined and prevents redundant processing of records that failed earlier stages.
+## 1. Architecture Summary
+The SBA pipeline uses an index-centric waterfall contract.
 
----
+- Universal anchor: `record_id` index.
+- Stage signature: `method(context, stage_cfg) -> DataFrame`.
+- Default index rule: each stage returns a subset of current survivor rows.
+- Merge rule: stage outputs are concatenated horizontally by index.
+- Controlled exception: final merge stage may re-introduce active rows using `allow_new_indices: true`.
 
-## 1. Foundational Stage: Record ID Generation
-
-### Overview
-The `Record ID Generation` stage establishes the primary anchor for the entire pipeline. It ensures that every row in the dataset has a unique, stable identifier (`record_id`) which is then promoted to the DataFrame index. This index is used by the `PipelineRunner` to perform horizontal concatenation and maintain the "survivor universe" across stages.
-
-### Configuration Requirements
-To include this stage in the pipeline, add an entry to the `pipeline` list in `featurizer_config.yaml`:
-
-```yaml
-pipeline:
-  - name: "Record ID Generation"
-    method: "record_id_definition"
-    entity: "System"
-    sub_filter: "System"
-```
-
-### Technical Implementation Details
-1. **Identifier Check**: The method checks the input `context['data']` for an existing `record_id` column.
-2. **Sequence Generation**: If the column is missing, it generates a clean integer sequence matching the length of the input data.
-3. **Index Promotion**: While the method returns a DataFrame containing the `record_id` column, the `PipelineRunner` specifically looks for this column name. When detected, the runner:
-    * Sets `record_id` as the index for the stage result.
-    * Re-indexes the master `context['data']` to use this new index.
-    * Ensures all subsequent stages are aligned to this specific index.
-
-### Output Schema
-| Column Name | Data Type | Description |
-| :--- | :--- | :--- |
-| `record_id` | Integer | (Promoted to Index) The unique identifier for the loan record. |
-
-### Logic Location
-- **Stage Method**: `/featurization_scripts/featurization.py`
+Core intent:
+- Modeling development is performed on non-active rows (`loan_status_r` in `{0, 1}`).
+- Active rows (`loan_status_r = -1`) are held out, transformed with train-fitted artifacts, then merged back in an aligned feature space.
 
 ---
 
-## 2. Feature Stage: Borrower Geo Coding
+## 2. Configuration Anchors
+Key fields in `featurizer_config.yaml`:
 
-## Overview
-The `Borrower Geo Coding` stage converts geographical attributes (City, State, Zip) associated with a Borrower into Latitude and Longitude coordinates. This is performed using a combination of postal code lookups and address string geocoding.
+- `MIN_SUPPORT_THRESHOLD_CAT_VARS`: support threshold for low-count handling.
+- `VALIDATION_SIZE`: train/validation split fraction.
+- `FEATURE_SELECTION_MIN_NON_NULL_RATE`: minimum train non-null rate for feature retention.
 
-## Configuration Requirements
-To include this stage in the pipeline, add an entry to the `pipeline` list in `featurizer_config.yaml` with the following keys:
-
-- **`name`**: Descriptive name (e.g., `Borrower Geo Coding`).
-- **`method`**: Must be `borrower_geo_coding`.
-- **`entity`**: Set to `geographical`. This tag is used to filter metadata for attributes where the category flag (e.g., `is_geographical`) is true.
-- **`sub_filter`**: Set to `Borrower`. This matches the `provisional_entity_assignment` value in the metadata.
-
-### Example Configuration
-```yaml
-pipeline:
-  - name: "Borrower Geo Coding"
-    method: "borrower_geo_coding"
-    entity: "geographical"
-    sub_filter: "Borrower"
-```
-
-## Technical Implementation Details
-
-### 1. Attribute Discovery
-The method uses `get_stage_subset(context, entity, sub_filter)` to isolate the relevant columns. It specifically looks for columns in the input data where the KMDS metadata has:
-- `is_geographical` (or `is_geographic`) set to `True`.
-- `provisional_entity_assignment` set to `Borrower`.
-
-### 2. Coordinate Transformation
-The transformation logic is delegated to `compute_geo_coordinates`:
-- **Zip Lookup**: Attempts to resolve coordinates via `pgeocode` using the identified Zip code column.
-- **Address Geocoding**: For records not resolved by Zip, it builds an address string from the subsetted columns and queries `Nominatim`. 
-- **Caching**: Address queries are cached to optimize performance for repeated locations.
-
-### 3. Output Requirements
-The stage is designed to be a "Feature Producer." It performs the following clean-up before returning:
-- **Renaming**: Derived coordinates are renamed from internal proxy names to `borrower_latitude` and `borrower_longitude`.
-- **Subsetting**: Returns only the two coordinate columns.
-- **Index Alignment**: The resulting DataFrame maintains the original index (e.g., `record_id`) to ensure the `PipelineRunner` can horizontally concatenate the features back to the main dataset.
-
-## Output Schema
-| Column Name | Data Type | Description |
-| :--- | :--- | :--- |
-| `borrower_latitude` | Float | Derived latitude coordinate. |
-| `borrower_longitude` | Float | Derived longitude coordinate. |
-
-## Logic Location
-- **Stage Method**: `/featurization_scripts/featurization.py`
-- **Transformation Engine**: `src/featurization/transforms/geo.py`
+Important file/path anchors:
+- Input data: `data/dd_cleaner/sba_loans_user_cleaned.csv`
+- Metadata: `data/dd_cleaner/sba_loans_metadata_table.csv`
+- User stage logic: `featurization_scripts/featurization.py`
 
 ---
 
-## 3. Feature Stage: Low Count Categorical Encoding
+## 3. Stage Sequence (Canonical)
 
-### Overview
-The `Low Count Categorical Encoding` stage processes categorical variables to reduce noise and handle high-cardinality columns. It identifies "rare" levels (those appearing fewer times than a defined threshold) and attempts to consolidate them into a single `OTHERS` category.
+### Stage 1: `record_id_definition`
+Creates `record_id` when absent and promotes it to index.
 
-### Configuration Requirements
-```yaml
-pipeline:
-  - name: "Low Count Categorical Encoding"
-    method: "low_count_featurization_of_cat_vars"
-    entity: "categorical"
-    sub_filter: "low_count"
-    drop_filter: ["loanstatus", "naicscode"]
-```
+### Stage 2: `borrower_geo_coding`
+Adds `borrower_latitude` and `borrower_longitude` using fallback:
+- ZIP -> CITY -> STATE centroid.
 
-### Technical Implementation Details
-1. **Attribute Discovery**: Uses `get_categorical_subset(context, drop_filter)` to identify columns that are categorized as 'object' or 'category' in Pandas and are present in the KMDS metadata.
-2. **Support Thresholding**: Reads `MIN_SUPPORT_THRESHOLD_CAT_VARS` from the configuration (defaults to 5).
-3. **Consolidation Logic**:
-    * **Pass 1: Roll Up**: Each categorical column is scanned. Levels appearing fewer times than the threshold are mapped to the `'OTHERS'` category in a temporary DataFrame.
-    * **Pass 2: Support Check**: The system iterates through the rolled-up columns. It calculates the frequency of `'OTHERS'` within the *current* survivor population.
-    * **Sequential Waterfall**: If the `'OTHERS'` count for an attribute is non-zero but less than the threshold, those specific records are dropped immediately. 
-    * **Subsequent Recalculation**: Because drops are sequential, the support for `'OTHERS'` in the *next* attribute is evaluated only against the remaining records.
-    * **Logging**: The system reports the names of attributes that triggered insufficient support drops and the total count of removed records.
-4. **Column Naming**: The resulting columns are suffixed with `_encoded`.
+### Stage 3: `low_count_featurization_of_cat_vars`
+Two-pass categorical low-count handling for general categoricals:
+- pass 1: low-support levels recoded to `OTHERS`
+- pass 2: sequential support enforcement with in-stage row drops
+- output suffix: `_rcs`
 
-### Output Schema
-| Column Name | Data Type | Description |
-| :--- | :--- | :--- |
-| `[original_name]_encoded` | String/Object | The categorical column with rare levels consolidated or dropped. |
+### Stage 4: `hierarchical_low_count_var_encoding`
+NAICS-specific hierarchical support recoding.
+- Uses right-side masking (NAICS-aligned).
+- Example: `722511 -> 72251* -> 7225** -> ...`
+- Output column: `naicscode_rcs`
 
-### Logic Location
-- **Stage Method**: `/featurization_scripts/featurization.py`
-- **Attribute Discovery**: `src/tabular/low_count_cat_var_encoding.py`
+### Stage 5: `loan_status_recoding`
+Maps operational status labels to:
+- active: `-1`
+- closed: `0`
+- distressed: `1`
+
+### Stage 6: `filter_modeling_universe`
+Filters out active rows from modeling path.
+- Keeps active rows in `context["active_holdout"]` for later scoring/reconciliation.
+- Survivor universe becomes only rows with target in `{0, 1}`.
+
+### Stage 7: `stratified_train_val_split`
+Adds split flag on modeling universe:
+- `dataset_split` in `{train, val}`
+- stratified by `loan_status_r`
+- controlled by `VALIDATION_SIZE`
+
+### Stage 8: `target_encode_categorical_vars`
+Leakage-safe target encoding:
+- fit `TargetEncoder` on train rows only
+- transform modeling universe (train + val)
+- transform active holdout with same train-fitted encoder
+- stores reusable artifacts in context:
+  - `target_encoder`
+  - `target_encoder_cols`
+  - `active_encoded`
+
+### Stage 9: `harmonize_and_project_feature_space`
+Builds canonical feature schema from train partition and projects both modeled and active partitions.
+- candidate pool includes encoded and numeric feature columns
+- selected by train-based thresholds:
+  - min non-null rate (`FEATURE_SELECTION_MIN_NON_NULL_RATE`)
+  - min unique count (`min_unique` stage arg)
+- stores:
+  - `selected_features`
+  - `modeled_projected`
+  - `active_projected`
+- adds partition marker:
+  - `dataset_partition = modeled` for train/val rows
+  - `dataset_partition = active` for active holdout rows
+
+### Stage 10: `merge_modeled_and_active_partitions`
+Concatenates projected modeled and active partitions into one aligned dataset.
+- Requires `allow_new_indices: true` because active indices are reintroduced.
+- Final persisted artifact contains all partitions with shared feature schema.
+
+---
+
+## 4. Artifact and Leakage Rules
+
+### Fit-on-train-only rule
+The following are fit only on train rows and reused elsewhere:
+- target encoder
+- feature subset/schema
+
+### Transform-only rule for validation and active
+Validation and active partitions are transformed using train-fitted artifacts.
+No refit is performed on validation or active data.
+
+### Merge reconciliation rule
+Row counts may differ by partition, but feature columns must match exactly before merge.
+Projection enforces a fixed schema based on train-selected features.
+
+---
+
+## 5. Output Semantics
+Final persisted output (`featurized_data.csv`) includes:
+- engineered feature columns
+- target column (`loan_status_r`)
+- split marker (`dataset_split`: `train`, `val`, `active`)
+- partition marker (`dataset_partition`: `modeled`, `active`)
+
+Interpretation:
+- `dataset_partition = modeled` rows are development rows (train/val).
+- `dataset_partition = active` rows are active holdout rows transformed into the same feature space.
+
+---
+
+## 6. Modular Code Locations
+
+Package-side reusable modules:
+- `src/tabular/low_count_cat_var_encoding.py`
+- `src/tabular/hierarchical_low_count_var_encoding.py`
+- `src/tabular/modeling_filter.py`
+- `src/tabular/train_val_split.py`
+- `src/tabular/target_encoding.py`
+- `src/tabular/feature_space.py`
+
+User-stage orchestration wrapper:
+- `featurization_scripts/featurization.py`
+
+Runner/core behavior:
+- `src/featurization/core/sequential_pipeline_runner.py`
+- `src/featurization/core/path_coordinator.py`
+- `src/featurization/core/featurization_init.py`
+
+---
+
+## 7. Validation Coverage
+Primary smoke/integration test:
+- `tests/test_sba_pipeline.py`
+
+Test checks include:
+- canonical pipeline method presence
+- expected engineered columns
+- binary modeled target universe
+- split and partition markers
+- persisted output file contains required columns
+
+---
+
+## 8. Design Notes
+- Keep NAICS hierarchy handling separate from generic low-count categorical handling.
+- Keep active scoring/reconciliation separate from model fitting stages.
+- Keep stage wrappers thin and delegate reusable logic to package modules.
+- Prefer explicit stages over overloaded parameterization when readability is at risk.
+
+## 9. Current Scope Boundary
+- This session stops at producing the model-ready numeric dataset after feature projection/selection.
+- Current feature selection is threshold-based (train non-null rate + uniqueness), not model-based.
+- Active rows are encoded/projected into the same selected feature space and merged for downstream scoring.
+
+Planned enhancement (next phase):
+- Add model-based feature selection (e.g., XGBoost or Random Forest wrapper) fit on train only.
+- Persist selected feature list from model-based selector and reuse it for val and active projection.
+- Keep leakage controls unchanged: fit on train only, transform/project on val and active.
