@@ -1,0 +1,32 @@
+working_dir: /home/rajiv/programming/dd_parser_cleaner_migration/sba_migration
+pipeline:
+  - name: "Record ID Generation"
+    method: "record_id_definition"
+    entity: "System"
+    sub_filter: "System"
+  - name: "Borrower Geo Coding"
+    method: "borrower_geo_coding"
+    entity: "geographic"
+    sub_filter: "Borrower"
+  - name: "Low Count Categorical Encoding"
+    method: "low_count_featurization_of_cat_vars"
+    entity: "categorical"
+    sub_filter: "low_count"
+    drop_filter: ["loanstatus", "naicscode"]
+  - name: "Loan Status Recoding"
+    method: "loan_status_recoding"
+    entity: "System"
+    sub_filter: "Loan"
+metadata_file: sba_loans_metadata_table.csv
+dd_cleaner_output_dir: dd_cleaner
+featurization_input_data: sba_loans_user_cleaned.csv
+featurization_output_dir: featurization
+quarantine_dir: featurization/quarantine
+featurized_data_file: featurized_data.csv
+feat_doc_directory: featurization_docs
+entity_assignment_output: entity_assignments.md
+script_dir: featurization_scripts
+script_name: featurization.py
+country_code: us
+structural_type: cross-sectional
+MIN_SUPPORT_THRESHOLD_CAT_VARS: 5

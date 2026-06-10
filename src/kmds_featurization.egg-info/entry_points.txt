@@ -1,0 +1,2 @@
+[console_scripts]
+featurization-cli = featurization.cli:main

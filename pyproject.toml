@@ -1,24 +1,28 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "featurization"
+name = "kmds-featurization"
 version = "0.1.0"
-description = "Per-Entity Proxy-First Geographic Gating and Featurization for kmds-data-helper"
-readme = "README.md"
-requires-python = ">=3.10"
+description = "KMDS Featurization Service and Orchestration Pipeline"
 dependencies = [
     "pandas",
     "numpy",
+    "pyyaml",
     "scikit-learn",
-    "geopy",
     "pgeocode",
-    "pyyaml"
+    "tabulate>=0.10.0",
 ]
 
 [project.scripts]
-compute-features = "featurization.cli:main"
+featurization-cli = "featurization.cli:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/featurization"]
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

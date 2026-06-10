@@ -1,2 +1,1 @@
-def hello() -> str:
-    return "Hello from featurization!"
+# KMDS Tabular Utilities Package

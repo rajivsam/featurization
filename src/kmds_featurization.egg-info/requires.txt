@@ -1,0 +1,6 @@
+pandas
+numpy
+pyyaml
+scikit-learn
+pgeocode
+tabulate>=0.10.0

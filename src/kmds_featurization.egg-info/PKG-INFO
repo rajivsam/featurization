@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: kmds-featurization
+Version: 0.1.0
+Summary: KMDS Featurization Service and Orchestration Pipeline
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: pyyaml
+Requires-Dist: scikit-learn
+Requires-Dist: pgeocode
+Requires-Dist: tabulate>=0.10.0
