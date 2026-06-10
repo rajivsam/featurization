@@ -39,11 +39,11 @@ For the current SBA flow, the model-ready dataset is:
 Front section (feature assembly):
 
 1. record_id_definition
-2. borrower_geo_coding
+2. entity_coding
 3. prepare_categorical_data
 4. prepare_numerical_data
 5. merge_categorical_and_numerical
-6. merge_with_borrower_geo
+6. merge_with_entity_coding
 
 Merge stage design:
 
@@ -54,7 +54,7 @@ Merge stage design:
 Leakage-safe modeling section:
 7. low_count_featurization_of_cat_vars
 8. hierarchical_low_count_var_encoding
-9. loan_status_recoding
+9. target_status_recoding
 10. filter_modeling_universe
 11. stratified_train_val_split
 12. target_encode_categorical_vars
