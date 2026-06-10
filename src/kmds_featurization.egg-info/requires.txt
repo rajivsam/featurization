@@ -4,4 +4,6 @@ pyyaml
 scikit-learn
 pgeocode
 category-encoders
+kneed
+matplotlib
 tabulate>=0.10.0

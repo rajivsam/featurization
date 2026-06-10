@@ -23,9 +23,14 @@ src/tabular/entity_tagging.py
 src/tabular/feature_space.py
 src/tabular/hierarchical_low_count_var_encoding.py
 src/tabular/low_count_cat_var_encoding.py
+src/tabular/merge_ops.py
 src/tabular/modeling_filter.py
 src/tabular/target_encoding.py
 src/tabular/train_val_split.py
+tests/test_feature_space.py
 tests/test_initialization.py
+tests/test_leakage_guards.py
+tests/test_low_count_cat_var_encoding.py
+tests/test_merge_ops.py
 tests/test_sba_pipeline.py
 tests/test_utils.py

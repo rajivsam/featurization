@@ -1,8 +1,9 @@
 # KMDS Featurization
 
-This repository provides a configurable, stage-based featurization engine for SBA modeling workflows.
+This repository provides a configurable, stage-based featurization engine for KMDS modeling workflows.
 
 The design goal is simple:
+
 - keep stage logic understandable and composable
 - keep orchestration/configuration centralized
 - keep modeling flow leakage-safe (fit on train only, reuse on val/active)
@@ -10,13 +11,16 @@ The design goal is simple:
 ## What This Produces
 
 The pipeline writes two CSV outputs:
+
 - featurized_data.csv: consolidated engineered dataset (modeled + active partitions)
 - model_ready_numeric_data.csv: numeric model-ready export from the final stage output
 
 Additional diagnostic artifact:
+
 - feature_selection_knee_curve.png: ranked feature-importance knee plot saved in the featurization output directory
 
 For the current SBA flow, the model-ready dataset is:
+
 - numeric/bool only
 - train-fitted feature-selected
 - schema-aligned across train/val/active
@@ -33,6 +37,7 @@ For the current SBA flow, the model-ready dataset is:
 ## Pipeline Layout (Current Hybrid Design)
 
 Front section (feature assembly):
+
 1. record_id_definition
 2. borrower_geo_coding
 3. prepare_categorical_data
@@ -41,6 +46,7 @@ Front section (feature assembly):
 6. merge_with_borrower_geo
 
 Merge stage design:
+
 - package component: src/tabular/merge_ops.py
 - user wrappers: featurization_scripts/featurization.py
 - merge key: record_id index
@@ -56,6 +62,7 @@ Leakage-safe modeling section:
 14. merge_modeled_and_active_partitions
 
 Current encoding rule:
+
 - if both raw and rarity-corrected categorical variants exist (x and x_rcs), only x_rcs is target-encoded
 
 ## Tree-Based Feature Selection
@@ -63,10 +70,12 @@ Current encoding rule:
 Feature selection runs in harmonize_and_project_feature_space using train rows only.
 
 Supported selector modes:
+
 - threshold
 - tree_ensemble
 
 Supported tree models:
+
 - gbm
 - random_forest
 - xgboost (optional dependency)
@@ -74,6 +83,7 @@ Supported tree models:
 All selector choices are config-driven via featurizer_config.yaml and surfaced through PathCoordinator (no stage-level hardcoded constants).
 
 Feature-count tuning for kneedle mode:
+
 - FEATURE_SELECTION_TOP_K_MODE: kneedle
 - FEATURE_SELECTION_TOP_K_MIN_RATIO: conservative default floor, e.g. 0.5
 - FEATURE_SELECTION_MIN_FEATURE_COUNT: hard floor for retained features
@@ -94,20 +104,21 @@ Feature-count tuning for kneedle mode:
 The tabular package modules are intentionally split into two modeling buckets:
 
 - Row-selection components:
-	- src/tabular/modeling_filter.py
-	- src/tabular/train_val_split.py
-	- Purpose: decide which records participate in training and how records are partitioned.
 
+  - src/tabular/modeling_filter.py
+  - src/tabular/train_val_split.py
+  - Purpose: decide which records participate in training and how records are partitioned.
 - Column-selection components:
-	- src/tabular/feature_space.py
-	- src/tabular/target_encoding.py
-	- src/tabular/low_count_cat_var_encoding.py
-	- src/tabular/hierarchical_low_count_var_encoding.py
-	- Purpose: decide which feature columns are engineered, selected, encoded, and projected.
 
+  - src/tabular/feature_space.py
+  - src/tabular/target_encoding.py
+  - src/tabular/low_count_cat_var_encoding.py
+  - src/tabular/hierarchical_low_count_var_encoding.py
+  - Purpose: decide which feature columns are engineered, selected, encoded, and projected.
 - Assembly components:
-	- src/tabular/merge_ops.py
-	- Purpose: index-aligned horizontal composition of prepared payloads.
+
+  - src/tabular/merge_ops.py
+  - Purpose: index-aligned horizontal composition of prepared payloads.
 
 ## CLI
 
@@ -137,12 +148,12 @@ pytest -q tests/test_sba_pipeline.py
 1. Add reusable logic in src/tabular first whenever possible.
 2. Keep stage wrappers in workspace featurization_scripts/featurization.py thin and explicit.
 3. Add new tunables to:
-	- featurizer_config.yaml
-	- src/featurization/core/path_coordinator.py
-	- src/featurization/core/featurization_init.py
+   - featurizer_config.yaml
+   - src/featurization/core/path_coordinator.py
+   - src/featurization/core/featurization_init.py
 4. Preserve leakage rules:
-	- fit artifacts on train only
-	- transform val/active using train-fitted artifacts
+   - fit artifacts on train only
+   - transform val/active using train-fitted artifacts
 5. Validate with tests after each change.
 
 ## Recommended Read Order
