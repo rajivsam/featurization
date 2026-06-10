@@ -20,6 +20,7 @@ src/kmds_featurization.egg-info/top_level.txt
 src/tabular/__init__.py
 src/tabular/attribute_derivation.py
 src/tabular/entity_tagging.py
+src/tabular/feature_space.py
 src/tabular/hierarchical_low_count_var_encoding.py
 src/tabular/low_count_cat_var_encoding.py
 src/tabular/modeling_filter.py

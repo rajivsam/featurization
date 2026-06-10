@@ -2,7 +2,7 @@ import argparse
 import sys
 import os
 import yaml
-from featurization.sequential_pipeline_runner import PipelineRunner
+from featurization.core.sequential_pipeline_runner import PipelineRunner
 from featurization.core.featurization_init import initialize_config
 from featurization.core.path_coordinator import PathCoordinator
 
