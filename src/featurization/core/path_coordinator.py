@@ -37,6 +37,51 @@ class PathCoordinator:
         return float(self.config.get("FEATURE_SELECTION_MIN_NON_NULL_RATE", 0.01))
 
     @property
+    def feature_selection_method(self) -> str:
+        """Returns feature selection strategy: threshold or tree_ensemble."""
+        return str(self.config.get("FEATURE_SELECTION_METHOD", "tree_ensemble")).strip().lower()
+
+    @property
+    def feature_selection_top_k(self) -> int:
+        """Returns top-k cap for selected features (<=0 means keep all)."""
+        return int(self.config.get("FEATURE_SELECTION_TOP_K", 50))
+
+    @property
+    def feature_selection_importance_floor(self) -> float:
+        """Returns minimum feature importance required for tree-based selection."""
+        return float(self.config.get("FEATURE_SELECTION_IMPORTANCE_FLOOR", 0.0))
+
+    @property
+    def feature_selection_tree_model(self) -> str:
+        """Returns tree model for feature selection: gbm, random_forest, or xgboost."""
+        return str(self.config.get("FEATURE_SELECTION_TREE_MODEL", "gbm")).strip().lower()
+
+    @property
+    def feature_selection_tree_n_estimators(self) -> int:
+        """Returns number of estimators for tree-based selector."""
+        return int(self.config.get("FEATURE_SELECTION_TREE_N_ESTIMATORS", 200))
+
+    @property
+    def feature_selection_tree_learning_rate(self) -> float:
+        """Returns learning rate for GBM/XGBoost selectors."""
+        return float(self.config.get("FEATURE_SELECTION_TREE_LEARNING_RATE", 0.05))
+
+    @property
+    def feature_selection_tree_max_depth(self) -> int:
+        """Returns max depth for tree-based selector."""
+        return int(self.config.get("FEATURE_SELECTION_TREE_MAX_DEPTH", 3))
+
+    @property
+    def feature_selection_tree_subsample(self) -> float:
+        """Returns subsample ratio for GBM/XGBoost selectors."""
+        return float(self.config.get("FEATURE_SELECTION_TREE_SUBSAMPLE", 0.8))
+
+    @property
+    def feature_selection_tree_random_state(self) -> int:
+        """Returns random state for reproducible tree-based selection."""
+        return int(self.config.get("FEATURE_SELECTION_TREE_RANDOM_STATE", 42))
+
+    @property
     def model_ready_numeric_only(self) -> bool:
         """Returns whether model-ready export should contain numeric columns only."""
         return bool(self.config.get("MODEL_READY_NUMERIC_ONLY", True))

@@ -1,122 +1,165 @@
-# 📑 Configuration Guide: `featurizer_config.yaml` Reference Blueprint
+# Configuration Guide: featurizer_config.yaml Blueprint
 
-The `featurizer_config.yaml` file serves as the authoritative single source of truth for the `kmds-data-helper` featurization workspace. It extends the core infrastructure established in the `dd-parser-cleaner` workflow to support the **Index-Centric Waterfall** pipeline.
+This document explains the active configuration contract used by the featurization engine.
 
----
+## 1. Configuration Model
 
-## 🏗️ The 4 Major Configuration Sections
+featurizer_config.yaml is the single runtime source of truth for:
+- path routing
+- pipeline stage order
+- transformation and modeling constants
 
-The file is split into four core blocks to logically decouple shared global system layers from individual runtime component boundaries.
+The file uses a flat key structure plus a pipeline list.
 
-```text
- ┌────────────────────────────────────────────────────────┐
- │ 🌐 GLOBAL INFRASTRUCTURE PARAMETERS                    │
- │    (Working Directory, Structural Type, Environment)    │
- ├────────────────────────────────────────────────────────┤
- │ 🔎 PARSER MODULE CONTEXT (Upstream)                    │
- │    (Metadata Sources, Parsing Results)                 │
- ├────────────────────────────────────────────────────────┤
- │ 🧼 CLEANER MODULE CONTEXT (Upstream)                   │
- │    (Cleaned Dataset Anchors, Handshake Artifacts)      │
- ├────────────────────────────────────────────────────────┤
- │ 🚀 FEATURIZER MODULE CONFIGURATIONS (Active)           │
- │    (Pipeline Orchestration, Logic Routing, Output)     │
- └────────────────────────────────────────────────────────┘
-```
+## 2. Key Sections
 
----
+Global and path keys:
+- working_dir
+- structural_type
+- country_code
+- dd_cleaner_output_dir
+- metadata_file
+- featurization_input_data
+- featurization_output_dir
+- featurized_data_file
+- model_ready_data_file
+- quarantine_dir
+- script_dir
+- script_name
 
-## 🛠️ Detailed Functional Breakdown (Featurizer Focus)
+Modeling constants:
+- MIN_SUPPORT_THRESHOLD_CAT_VARS
+- VALIDATION_SIZE
+- FEATURE_SELECTION_MIN_NON_NULL_RATE
+- MODEL_READY_NUMERIC_ONLY
 
-### 1. Global Infrastructure Parameters
-* `working_dir`: The absolute path to the project root. All relative paths are resolved against this anchor by the `PathCoordinator`.
-* `structural_type`: Defines the nature of the data (e.g., `cross-sectional`, `longitudinal`).
+Tree-based feature selection keys:
+- FEATURE_SELECTION_METHOD
+- FEATURE_SELECTION_TOP_K
+- FEATURE_SELECTION_IMPORTANCE_FLOOR
+- FEATURE_SELECTION_TREE_MODEL
+- FEATURE_SELECTION_TREE_N_ESTIMATORS
+- FEATURE_SELECTION_TREE_LEARNING_RATE
+- FEATURE_SELECTION_TREE_MAX_DEPTH
+- FEATURE_SELECTION_TREE_SUBSAMPLE
+- FEATURE_SELECTION_TREE_RANDOM_STATE
 
-### 2. Featurizer Module Configurations (`featurizer:`)
-This block controls the orchestration of the feature engineering pipeline.
+Pipeline orchestration:
+- pipeline: ordered list of stage dictionaries
 
-* **Input Anchors**:
-    * `featurization_input_data`: Points to the source CSV (typically the output of the Cleaner).
-    * `metadata_file`: The KMDS Data Dictionary containing provisional entity tags used for slicing.
-* **Logic Routing**:
-    * `script_dir`: The directory containing custom transformation functions (e.g., `featurization_scripts`).
-    * `script_name`: The primary Python file containing the stage methods (e.g., `featurization.py`).
-* **Pipeline Orchestration**:
-    * `pipeline`: A sequential list of `StageDefinition` objects. Each stage defines:
-        * `name`: A descriptive label for logging.
-        * `method`: The exact function name to call in `featurization.py`.
-        * `entity`: The KMDS entity tag to filter by (e.g., `geographical`).
-        * `sub_filter`: The specific sub-domain (e.g., `Borrower`).
-* **Output & Diagnostics**:
-    * `featurized_data_file`: The final CSV containing the horizontally concatenated feature matrix.
-    * `quarantine_dir`: Destination for records that fail complex logic (e.g., geo-resolution failures).
-
----
-
-## 📋 Comprehensive Reference Layout Template
-
-Below is the authoritative structured schema syntax for the featurization workspace:
+## 3. Current Pipeline Template
 
 ```yaml
-# ==============================================================================
-# 🌐 GLOBAL INFRASTRUCTURE PARAMETERS
-# ==============================================================================
-working_dir: "/home/rajiv/programming/dd_parser_cleaner_migration/sba_migration"
+working_dir: "/path/to/workspace"
 structural_type: "cross-sectional"
 country_code: "us"
 
-# ==============================================================================
-# 🔎 PARSER & CLEANER CONTEXT (Upstream Anchors)
-# ==============================================================================
 dd_cleaner_output_dir: "dd_cleaner"
 metadata_file: "sba_loans_metadata_table.csv"
-data_file: "sba_loans_user_cleaned.csv"
+featurization_input_data: "sba_loans_user_cleaned.csv"
 
-# ==============================================================================
-# 🚀 FEATURIZER MODULE CONFIGURATIONS
-# ==============================================================================
-
-# Logic Discovery
 script_dir: "featurization_scripts"
 script_name: "featurization.py"
 
-# Input/Output Routing
-featurization_input_data: "sba_loans_user_cleaned.csv"
-featurized_data_file: "featurized_data.csv"
 featurization_output_dir: "featurization"
+featurized_data_file: "featurized_data.csv"
+model_ready_data_file: "model_ready_numeric_data.csv"
 quarantine_dir: "featurization/quarantine"
-feat_doc_directory: "featurization_docs"
 
-# Global Transform Constants
 MIN_SUPPORT_THRESHOLD_CAT_VARS: 5
+VALIDATION_SIZE: 0.2
+FEATURE_SELECTION_MIN_NON_NULL_RATE: 0.01
 
-# Pipeline Orchestration (The Waterfall)
+FEATURE_SELECTION_METHOD: "tree_ensemble"
+FEATURE_SELECTION_TOP_K: 50
+FEATURE_SELECTION_IMPORTANCE_FLOOR: 0.0
+FEATURE_SELECTION_TREE_MODEL: "gbm"
+FEATURE_SELECTION_TREE_N_ESTIMATORS: 200
+FEATURE_SELECTION_TREE_LEARNING_RATE: 0.05
+FEATURE_SELECTION_TREE_MAX_DEPTH: 3
+FEATURE_SELECTION_TREE_SUBSAMPLE: 0.8
+FEATURE_SELECTION_TREE_RANDOM_STATE: 42
+
+MODEL_READY_NUMERIC_ONLY: true
+
 pipeline:
-  - name: "record_id_generation"
+  - name: "Record ID Generation"
     method: "record_id_definition"
     entity: "System"
     sub_filter: "System"
 
-  - name: "borrower_geo_tagging"
-    method: "borrower_geo_tagging"
-    entity: "geographical"
+  - name: "Borrower Geo Coding"
+    method: "borrower_geo_coding"
+    entity: "geographic"
     sub_filter: "Borrower"
 
-  - name: "low_count_encoding"
+  - name: "Prepare Categorical Data"
+    method: "prepare_categorical_data"
+    entity: "categorical"
+    sub_filter: "modeling"
+
+  - name: "Prepare Numerical Data"
+    method: "prepare_numerical_data"
+    entity: "numerical"
+    sub_filter: "modeling"
+
+  - name: "Merge Categorical And Numerical"
+    method: "merge_categorical_and_numerical"
+    entity: "System"
+    sub_filter: "merge"
+
+  - name: "Merge With Borrower Geo"
+    method: "merge_with_borrower_geo"
+    entity: "System"
+    sub_filter: "merge"
+
+  - name: "Low Count Categorical Encoding"
     method: "low_count_featurization_of_cat_vars"
     entity: "categorical"
     sub_filter: "low_count"
-    drop_filter:
-      - "naicscode"
+
+  - name: "Hierarchical NAICS Recoding"
+    method: "hierarchical_low_count_var_encoding"
+    entity: "categorical"
+    sub_filter: "naics"
+
+  - name: "Loan Status Recoding"
+    method: "loan_status_recoding"
+    entity: "System"
+    sub_filter: "Loan"
+
+  - name: "Filter Modeling Universe"
+    method: "filter_modeling_universe"
+    entity: "System"
+    sub_filter: "Loan"
+
+  - name: "Train Validation Split"
+    method: "stratified_train_val_split"
+    entity: "System"
+    sub_filter: "Loan"
+
+  - name: "Target Encode Categoricals"
+    method: "target_encode_categorical_vars"
+    entity: "categorical"
+    sub_filter: "modeling"
+
+  - name: "Harmonize And Project Feature Space"
+    method: "harmonize_and_project_feature_space"
+    entity: "System"
+    sub_filter: "modeling"
+
+  - name: "Merge Modeled And Active Partitions"
+    method: "merge_modeled_and_active_partitions"
+    entity: "System"
+    sub_filter: "modeling"
+    allow_new_indices: true
 ```
 
----
+## 4. Extension Rule (Important)
 
-## 🎯 Implementation Checklist
+When introducing any new tunable, wire it in three places:
+1. featurizer_config.yaml
+2. src/featurization/core/path_coordinator.py
+3. src/featurization/core/featurization_init.py
 
-1. **Initialization**: Use `initialize_config()` in `featurization_init.py` to generate the baseline file.
-2. **Path Resolution**: Ensure `PathCoordinator` properties match the keys defined in the **Featurizer** block.
-3. **Waterfall Verification**: Stages must return a DataFrame with a `record_id` index to maintain the survivor universe.
-
----
-*Last Updated: Alignment with SBA Gen 1 Pipeline.*
+This keeps stage code free of hidden constants and ensures reproducibility.

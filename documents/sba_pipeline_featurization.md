@@ -3,176 +3,168 @@
 ## 1. Architecture Summary
 The SBA pipeline uses an index-centric waterfall contract.
 
-- Universal anchor: `record_id` index.
-- Stage signature: `method(context, stage_cfg) -> DataFrame`.
-- Default index rule: each stage returns a subset of current survivor rows.
+- Universal anchor: record_id index.
+- Stage signature: method(context, stage_cfg) -> DataFrame.
+- Default index rule: each stage returns rows from the current survivor universe.
 - Merge rule: stage outputs are concatenated horizontally by index.
-- Controlled exception: final merge stage may re-introduce active rows using `allow_new_indices: true`.
+- Controlled exception: only stages configured with allow_new_indices can re-introduce rows.
 
 Core intent:
-- Modeling development is performed on non-active rows (`loan_status_r` in `{0, 1}`).
-- Active rows (`loan_status_r = -1`) are held out, transformed with train-fitted artifacts, then merged back in an aligned feature space.
-
----
+- Modeling development is performed on non-active rows (loan_status_r in {0, 1}).
+- Active rows (loan_status_r = -1) are held out, transformed with train-fitted artifacts, then merged back in aligned schema.
 
 ## 2. Configuration Anchors
-Key fields in `featurizer_config.yaml`:
+Key fields in featurizer_config.yaml:
 
-- `MIN_SUPPORT_THRESHOLD_CAT_VARS`: support threshold for low-count handling.
-- `VALIDATION_SIZE`: train/validation split fraction.
-- `FEATURE_SELECTION_MIN_NON_NULL_RATE`: minimum train non-null rate for feature retention.
+- MIN_SUPPORT_THRESHOLD_CAT_VARS
+- VALIDATION_SIZE
+- FEATURE_SELECTION_MIN_NON_NULL_RATE
+- FEATURE_SELECTION_METHOD
+- FEATURE_SELECTION_TREE_MODEL
+- FEATURE_SELECTION_TOP_K
+- FEATURE_SELECTION_IMPORTANCE_FLOOR
+- FEATURE_SELECTION_TREE_N_ESTIMATORS
+- FEATURE_SELECTION_TREE_LEARNING_RATE
+- FEATURE_SELECTION_TREE_MAX_DEPTH
+- FEATURE_SELECTION_TREE_SUBSAMPLE
+- FEATURE_SELECTION_TREE_RANDOM_STATE
 
 Important file/path anchors:
-- Input data: `data/dd_cleaner/sba_loans_user_cleaned.csv`
-- Metadata: `data/dd_cleaner/sba_loans_metadata_table.csv`
-- User stage logic: `featurization_scripts/featurization.py`
+- Input data: data/dd_cleaner/sba_loans_user_cleaned.csv
+- Metadata: data/dd_cleaner/sba_loans_metadata_table.csv
+- User stage logic: featurization_scripts/featurization.py
 
----
+## 3. Stage Sequence (Current)
 
-## 3. Stage Sequence (Canonical)
+Feature-assembly front section:
 
-### Stage 1: `record_id_definition`
-Creates `record_id` when absent and promotes it to index.
+### Stage 1: record_id_definition
+Creates record_id when absent and promotes it to index.
 
-### Stage 2: `borrower_geo_coding`
-Adds `borrower_latitude` and `borrower_longitude` using fallback:
-- ZIP -> CITY -> STATE centroid.
+### Stage 2: borrower_geo_coding
+Adds borrower_latitude and borrower_longitude using fallback ZIP -> CITY -> STATE centroid.
+Borrower geo attributes are sourced from metadata tagging via get_stage_subset(..., entity="geographic", sub_filter="Borrower").
 
-### Stage 3: `low_count_featurization_of_cat_vars`
-Two-pass categorical low-count handling for general categoricals:
-- pass 1: low-support levels recoded to `OTHERS`
-- pass 2: sequential support enforcement with in-stage row drops
-- output suffix: `_rcs`
+### Stage 3: prepare_categorical_data
+Builds categorical payload for modeling and stores it in context.
 
-### Stage 4: `hierarchical_low_count_var_encoding`
-NAICS-specific hierarchical support recoding.
-- Uses right-side masking (NAICS-aligned).
-- Example: `722511 -> 72251* -> 7225** -> ...`
-- Output column: `naicscode_rcs`
+### Stage 4: prepare_numerical_data
+Builds numeric payload for modeling and stores it in context.
 
-### Stage 5: `loan_status_recoding`
-Maps operational status labels to:
-- active: `-1`
-- closed: `0`
-- distressed: `1`
+### Stage 5: merge_categorical_and_numerical
+Merges categorical and numerical payloads by record_id index.
+Implementation uses package helper src/tabular/merge_ops.py.
 
-### Stage 6: `filter_modeling_universe`
-Filters out active rows from modeling path.
-- Keeps active rows in `context["active_holdout"]` for later scoring/reconciliation.
-- Survivor universe becomes only rows with target in `{0, 1}`.
+### Stage 6: merge_with_borrower_geo
+Merges the structured payload with borrower geo features by record_id index.
+Implementation uses package helper src/tabular/merge_ops.py.
 
-### Stage 7: `stratified_train_val_split`
-Adds split flag on modeling universe:
-- `dataset_split` in `{train, val}`
-- stratified by `loan_status_r`
-- controlled by `VALIDATION_SIZE`
+Leakage-safe modeling section:
 
-### Stage 8: `target_encode_categorical_vars`
-Leakage-safe target encoding:
-- fit `TargetEncoder` on train rows only
-- transform modeling universe (train + val)
-- transform active holdout with same train-fitted encoder
-- stores reusable artifacts in context:
-  - `target_encoder`
-  - `target_encoder_cols`
-  - `active_encoded`
+### Stage 7: low_count_featurization_of_cat_vars
+Two-pass categorical low-support handling with _rcs output suffix.
 
-### Stage 9: `harmonize_and_project_feature_space`
-Builds canonical feature schema from train partition and projects both modeled and active partitions.
-- candidate pool includes encoded and numeric feature columns
-- selected by train-based thresholds:
-  - min non-null rate (`FEATURE_SELECTION_MIN_NON_NULL_RATE`)
-  - min unique count (`min_unique` stage arg)
-- stores:
-  - `selected_features`
-  - `modeled_projected`
-  - `active_projected`
-- adds partition marker:
-  - `dataset_partition = modeled` for train/val rows
-  - `dataset_partition = active` for active holdout rows
+### Stage 8: hierarchical_low_count_var_encoding
+NAICS-specific hierarchical support recoding (right-mask strategy).
 
-### Stage 10: `merge_modeled_and_active_partitions`
-Concatenates projected modeled and active partitions into one aligned dataset.
-- Requires `allow_new_indices: true` because active indices are reintroduced.
-- Final persisted artifact contains all partitions with shared feature schema.
+### Stage 9: loan_status_recoding
+Maps operational status labels into {-1, 0, 1}.
 
----
+### Stage 10: filter_modeling_universe
+Removes active class from modeling survivors and stores active rows in context["active_holdout"].
+This is a row-selection stage, not a feature-selection stage.
+
+### Stage 11: stratified_train_val_split
+Creates dataset_split = train/val with stratification by loan_status_r.
+
+### Stage 12: target_encode_categorical_vars
+Fits TargetEncoder on train only; transforms modeling and active with train-fitted artifact.
+
+### Stage 13: harmonize_and_project_feature_space
+Selects canonical feature schema from train partition and projects modeled + active partitions.
+
+Feature selection behavior:
+- threshold mode: non-null and uniqueness constraints
+- tree_ensemble mode: supervised importance ranking using gbm/random_forest/xgboost
+- always fit on train only
+
+### Stage 14: merge_modeled_and_active_partitions
+Concatenates projected modeled and active partitions into one aligned output.
 
 ## 4. Artifact and Leakage Rules
 
-### Fit-on-train-only rule
-The following are fit only on train rows and reused elsewhere:
+Fit-on-train-only artifacts:
 - target encoder
-- feature subset/schema
+- feature-selection model and selected feature list
 
-### Transform-only rule for validation and active
-Validation and active partitions are transformed using train-fitted artifacts.
-No refit is performed on validation or active data.
+Transform-only for validation and active:
+- no refit on val or active
 
-### Merge reconciliation rule
-Row counts may differ by partition, but feature columns must match exactly before merge.
-Projection enforces a fixed schema based on train-selected features.
-
----
+Merge reconciliation:
+- partition row counts may differ
+- feature columns must match before final merge
 
 ## 5. Output Semantics
-Final persisted output (`featurized_data.csv`) includes:
+Final persisted output (featurized_data.csv) includes:
 - engineered feature columns
-- target column (`loan_status_r`)
-- split marker (`dataset_split`: `train`, `val`, `active`)
-- partition marker (`dataset_partition`: `modeled`, `active`)
+- loan_status_r
+- dataset_split (train, val, active)
+- dataset_partition (modeled, active)
 
-Interpretation:
-- `dataset_partition = modeled` rows are development rows (train/val).
-- `dataset_partition = active` rows are active holdout rows transformed into the same feature space.
+Final model-ready export (model_ready_numeric_data.csv):
+- numeric and bool columns only
+- built from final stage output
 
----
+## 6. Code Map
 
-## 6. Modular Code Locations
+Package component taxonomy:
 
-Package-side reusable modules:
-- `src/tabular/low_count_cat_var_encoding.py`
-- `src/tabular/hierarchical_low_count_var_encoding.py`
-- `src/tabular/modeling_filter.py`
-- `src/tabular/train_val_split.py`
-- `src/tabular/target_encoding.py`
-- `src/tabular/feature_space.py`
+- Row-selection modules:
+  - src/tabular/modeling_filter.py
+  - src/tabular/train_val_split.py
 
-User-stage orchestration wrapper:
-- `featurization_scripts/featurization.py`
+- Column-selection modules:
+  - src/tabular/feature_space.py
+  - src/tabular/target_encoding.py
+  - src/tabular/low_count_cat_var_encoding.py
+  - src/tabular/hierarchical_low_count_var_encoding.py
 
-Runner/core behavior:
-- `src/featurization/core/sequential_pipeline_runner.py`
-- `src/featurization/core/path_coordinator.py`
-- `src/featurization/core/featurization_init.py`
+- Assembly module:
+  - src/tabular/merge_ops.py
 
----
+Package reusable modules:
+- src/tabular/low_count_cat_var_encoding.py
+- src/tabular/hierarchical_low_count_var_encoding.py
+- src/tabular/modeling_filter.py
+- src/tabular/train_val_split.py
+- src/tabular/target_encoding.py
+- src/tabular/feature_space.py
+- src/tabular/merge_ops.py
+
+Workspace stage wrapper:
+- featurization_scripts/featurization.py
+
+Core orchestration and config plumbing:
+- src/featurization/core/sequential_pipeline_runner.py
+- src/featurization/core/path_coordinator.py
+- src/featurization/core/featurization_init.py
 
 ## 7. Validation Coverage
 Primary smoke/integration test:
-- `tests/test_sba_pipeline.py`
+- tests/test_sba_pipeline.py
 
-Test checks include:
-- canonical pipeline method presence
+Current checks include:
+- expected stage methods in pipeline
 - expected engineered columns
 - binary modeled target universe
 - split and partition markers
-- persisted output file contains required columns
+- persisted output artifacts exist and contain required fields
 
----
-
-## 8. Design Notes
-- Keep NAICS hierarchy handling separate from generic low-count categorical handling.
-- Keep active scoring/reconciliation separate from model fitting stages.
-- Keep stage wrappers thin and delegate reusable logic to package modules.
-- Prefer explicit stages over overloaded parameterization when readability is at risk.
-
-## 9. Current Scope Boundary
-- This session stops at producing the model-ready numeric dataset after feature projection/selection.
-- Current feature selection is threshold-based (train non-null rate + uniqueness), not model-based.
-- Active rows are encoded/projected into the same selected feature space and merged for downstream scoring.
-
-Planned enhancement (next phase):
-- Add model-based feature selection (e.g., XGBoost or Random Forest wrapper) fit on train only.
-- Persist selected feature list from model-based selector and reuse it for val and active projection.
-- Keep leakage controls unchanged: fit on train only, transform/project on val and active.
+## 8. Extension Guidance
+- Keep stage wrappers thin and explicit.
+- Put reusable transformations in src/tabular.
+- Add any new tuning parameter in three places:
+  - featurizer_config.yaml
+  - src/featurization/core/path_coordinator.py
+  - src/featurization/core/featurization_init.py
+- Preserve leakage controls when introducing new modeling artifacts.

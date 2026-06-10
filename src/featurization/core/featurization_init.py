@@ -37,6 +37,25 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
         "FEATURE_SELECTION_MIN_NON_NULL_RATE": existing_config.get(
             "FEATURE_SELECTION_MIN_NON_NULL_RATE", 0.01
         ),
+        "FEATURE_SELECTION_METHOD": existing_config.get("FEATURE_SELECTION_METHOD", "tree_ensemble"),
+        "FEATURE_SELECTION_TOP_K": existing_config.get("FEATURE_SELECTION_TOP_K", 50),
+        "FEATURE_SELECTION_IMPORTANCE_FLOOR": existing_config.get(
+            "FEATURE_SELECTION_IMPORTANCE_FLOOR", 0.0
+        ),
+        "FEATURE_SELECTION_TREE_MODEL": existing_config.get("FEATURE_SELECTION_TREE_MODEL", "gbm"),
+        "FEATURE_SELECTION_TREE_N_ESTIMATORS": existing_config.get(
+            "FEATURE_SELECTION_TREE_N_ESTIMATORS", 200
+        ),
+        "FEATURE_SELECTION_TREE_LEARNING_RATE": existing_config.get(
+            "FEATURE_SELECTION_TREE_LEARNING_RATE", 0.05
+        ),
+        "FEATURE_SELECTION_TREE_MAX_DEPTH": existing_config.get("FEATURE_SELECTION_TREE_MAX_DEPTH", 3),
+        "FEATURE_SELECTION_TREE_SUBSAMPLE": existing_config.get(
+            "FEATURE_SELECTION_TREE_SUBSAMPLE", 0.8
+        ),
+        "FEATURE_SELECTION_TREE_RANDOM_STATE": existing_config.get(
+            "FEATURE_SELECTION_TREE_RANDOM_STATE", 42
+        ),
         "MODEL_READY_NUMERIC_ONLY": existing_config.get("MODEL_READY_NUMERIC_ONLY", True)
     }
 

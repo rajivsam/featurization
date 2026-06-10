@@ -1,59 +1,67 @@
-## 📑 Featurization Path Coordinator Architecture & Routing Contract
+# Featurization PathCoordinator: Routing And Config Contract
 
-The `PathCoordinator` is a core architectural pillar of the `KMDS Featurization` workspace. It acts as a centralized, zero-dependency routing infrastructure contract that isolates all file location mechanics from the featurization engines and stage logic.
+PathCoordinator centralizes all path and runtime-parameter resolution used by the pipeline.
 
----
+## 1. Why It Exists
 
-## 🎯 Why It Exists: The Two Core Constraints
+Without a coordinator, stage logic tends to accumulate hidden assumptions:
+- hardcoded directories
+- ad-hoc filenames
+- duplicated constant defaults
 
-Hardcoding file paths inside data processing components makes pipelines fragile and difficult to maintain. The `PathCoordinator` enforces routing rules to address two primary requirements:
+PathCoordinator prevents that by making config-driven values available as typed properties.
 
-## 1. Common-Sense Standardization
+## 2. What It Resolves
 
-A feature engineering workspace requires predictable, clean boundaries. The coordinator organizes the project layout into distinct, domain-specific subdirectories (`data/`, `featurization_scripts/`, `documents/`). This structured layout keeps the user-cleaned input data (from `dd-cleaner`) isolated from generated feature matrices, audit reports, and quarantine logs.
+Path properties:
+- metadata_path
+- featurization_input_path
+- featurized_dataset_path
+- model_ready_dataset_path
+- quarantine_path
+- script_logic_path
 
-## 2. "Index-Centric Waterfall" Predictability
+Runtime/modeling properties:
+- min_support_threshold
+- validation_size
+- feature_selection_min_non_null_rate
+- model_ready_numeric_only
 
-The featurization engine is built on an **Index-Centric Waterfall** model, where the integer `record_id` anchors every stage and the output of one transformation dictates the "survivor universe" for the next.
+Tree selector properties:
+- feature_selection_method
+- feature_selection_top_k
+- feature_selection_importance_floor
+- feature_selection_tree_model
+- feature_selection_tree_n_estimators
+- feature_selection_tree_learning_rate
+- feature_selection_tree_max_depth
+- feature_selection_tree_subsample
+- feature_selection_tree_random_state
 
-* **The Decoupling**: Featurization stages (e.g., NAICS encoding) are decoupled from the data loading logic. Stages expect the `PathCoordinator` to provide the path to the signed-off metadata table and the user-cleaned dataset, allowing for pure-logic implementations.
-* **The Quarantine**: A dedicated routing endpoint handles the isolation of records that fail complex transformations (like geo-tagging), ensuring invalid data is moved to `data/featurization/quarantine/` rather than causing downstream pipeline crashes.
-* **The Flow**: The `PipelineRunner` initializes the universe of records. Subsequent stages (like Categorical Encoding) automatically receive a subsetted DataFrame based on the indices returned by previous stages.
-* The Rule: To prevent data gaps or manual file-shuffling, the entry and exit points of every pipeline stage must be strictly defined, predictable, and automated.
+## 3. How It Is Used
 
----
+Flow at runtime:
+1. PipelineRunner loads config.
+2. PipelineRunner creates PathCoordinator(working_dir, config).
+3. Data loader reads source data and metadata using resolved paths.
+4. Stage logic accesses config behavior through resolver-backed values in context.
 
-## 🧠 Lifting the Cognitive Burden: Navigate via Properties
+This keeps stage methods simple and avoids path/config plumbing inside transformation code.
 
-By abstracting these pipeline routing constraints, the project achieves a "Context-Blind" architecture for feature engineering.
+## 4. Design Rule For New Parameters
 
-```text
-                ┌──────────────────────────────┐
-                │   featurizer_config.yaml     │
-                └──────────────┬───────────────┘
-                               │ ( authoritative rules )
-                               ▼
-                ┌──────────────────────────────┐
-                │       PathCoordinator        │
-                └──────┬───────────────┬───────┘
-                       │               │
-         ┌─────────────┘               └─────────────┐
-         ▼                                           ▼
-┌──────────────────┐                       ┌──────────────────┐
-│  PipelineRunner  │                       │  Logic Scripts   │
-│  (Orchestrator)  │                       │  (featurization) │
-└──────────────────┘                       └──────────────────┘
- (reads metadata/data)                       (executes transforms)
-```
+When adding a new tuneable:
+1. Add key to featurizer_config.yaml.
+2. Add typed property in PathCoordinator.
+3. Add default in initialize_config (featurization_init.py).
+4. Read the parameter via resolver in stage logic.
 
-* Zero User Guesswork: Developers, client scripts, and testing harnesses do not need to track folder nesting patterns or manage complex path strings. They simply pass the target configuration profile once.
-* Decoupled Engine Logic: The parser and cleaner modules focus entirely on transformation logic. They request their files directly from the coordinator via clean properties (like `self.paths.data_dictionary_csv_path`, `self.paths.raw_dataset_path`, or the new `self.paths.parser_provisional_report_path`).
-* Seamless Environment Shifting: Switching the runtime context from production execution to an isolated testing sandbox (`working_dir="./tests"`) requires zero application code modifications. The coordinator automatically dynamically recalibrates all internal absolute path roots.
+Following this rule keeps behavior reproducible and discoverable for new engineers.
 
----
+## 5. Relationship To The Hybrid Pipeline
 
-## 🎯 Workspace Status Check
-
-The featurization routing contract is now finalized and aligned with the SBA Gen 1 pipeline. The `PathCoordinator` is successfully localized in `core` and verified via `test_initialization.py`.
-
-Next, we are ready to implement specific logic stages like Hierarchical NAICS Encoding or validation of the full pipeline execution.
+The current hybrid flow has a front feature-assembly section and a leakage-safe modeling section.
+PathCoordinator supports both by resolving:
+- shared input/output paths
+- model-selection constants for train-only tree-based feature selection
+- output routing for final consolidated and model-ready artifacts

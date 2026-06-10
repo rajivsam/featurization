@@ -8,6 +8,23 @@ pipeline:
     method: "borrower_geo_coding"
     entity: "geographic"
     sub_filter: "Borrower"
+  - name: "Prepare Categorical Data"
+    method: "prepare_categorical_data"
+    entity: "categorical"
+    sub_filter: "modeling"
+    drop_filter: ["loanstatus", "naicscode"]
+  - name: "Prepare Numerical Data"
+    method: "prepare_numerical_data"
+    entity: "numerical"
+    sub_filter: "modeling"
+  - name: "Merge Categorical And Numerical"
+    method: "merge_categorical_and_numerical"
+    entity: "System"
+    sub_filter: "merge"
+  - name: "Merge With Borrower Geo"
+    method: "merge_with_borrower_geo"
+    entity: "System"
+    sub_filter: "merge"
   - name: "Low Count Categorical Encoding"
     method: "low_count_featurization_of_cat_vars"
     entity: "categorical"
@@ -73,4 +90,13 @@ structural_type: cross-sectional
 MIN_SUPPORT_THRESHOLD_CAT_VARS: 5
 VALIDATION_SIZE: 0.2
 FEATURE_SELECTION_MIN_NON_NULL_RATE: 0.01
+FEATURE_SELECTION_METHOD: tree_ensemble
+FEATURE_SELECTION_TOP_K: 50
+FEATURE_SELECTION_IMPORTANCE_FLOOR: 0.0
+FEATURE_SELECTION_TREE_MODEL: gbm
+FEATURE_SELECTION_TREE_N_ESTIMATORS: 200
+FEATURE_SELECTION_TREE_LEARNING_RATE: 0.05
+FEATURE_SELECTION_TREE_MAX_DEPTH: 3
+FEATURE_SELECTION_TREE_SUBSAMPLE: 0.8
+FEATURE_SELECTION_TREE_RANDOM_STATE: 42
 MODEL_READY_NUMERIC_ONLY: true
