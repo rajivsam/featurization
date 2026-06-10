@@ -12,11 +12,12 @@ pipeline:
     method: "prepare_categorical_data"
     entity: "categorical"
     sub_filter: "modeling"
-    drop_filter: ["loanstatus", "naicscode"]
+    drop_filter: ["loanstatus", "loancondition", "naicscode", "borrcity", "borrstate", "borrzip", "projectstate"]
   - name: "Prepare Numerical Data"
     method: "prepare_numerical_data"
     entity: "numerical"
     sub_filter: "modeling"
+    drop_filter: ["grosschargeoffamount"]
   - name: "Merge Categorical And Numerical"
     method: "merge_categorical_and_numerical"
     entity: "System"
@@ -29,7 +30,7 @@ pipeline:
     method: "low_count_featurization_of_cat_vars"
     entity: "categorical"
     sub_filter: "low_count"
-    drop_filter: ["loanstatus", "naicscode"]
+    drop_filter: ["loanstatus", "loancondition", "naicscode", "borrcity", "borrstate", "borrzip", "projectstate"]
   - name: "Hierarchical NAICS Recoding"
     method: "hierarchical_low_count_var_encoding"
     entity: "categorical"
@@ -61,6 +62,8 @@ pipeline:
     target_col: "loan_status_r"
     split_col: "dataset_split"
     output_suffix: "_te"
+    exclude_cols: ["loanstatus", "loancondition", "borrcity", "borrstate", "borrzip", "projectstate", "grosschargeoffamount"]
+    exclude_name_patterns: ["loan_status"]
   - name: "Harmonize And Project Feature Space"
     method: "harmonize_and_project_feature_space"
     entity: "System"
@@ -69,6 +72,8 @@ pipeline:
     split_col: "dataset_split"
     output_partition_col: "dataset_partition"
     min_unique: 2
+    exclude_candidate_cols: ["loanstatus", "loancondition", "borrcity", "borrstate", "borrzip", "projectstate", "grosschargeoffamount"]
+    exclude_candidate_name_patterns: ["loan_status"]
   - name: "Merge Modeled And Active Partitions"
     method: "merge_modeled_and_active_partitions"
     entity: "System"
@@ -92,6 +97,16 @@ VALIDATION_SIZE: 0.2
 FEATURE_SELECTION_MIN_NON_NULL_RATE: 0.01
 FEATURE_SELECTION_METHOD: tree_ensemble
 FEATURE_SELECTION_TOP_K: 50
+FEATURE_SELECTION_TOP_K_MODE: kneedle
+FEATURE_SELECTION_TOP_K_MIN: 5
+FEATURE_SELECTION_TOP_K_MIN_RATIO: 0.5
+FEATURE_SELECTION_MIN_FEATURE_COUNT: 10
+FEATURE_SELECTION_TOP_K_MAX: 50
+FEATURE_SELECTION_TARGET_FEATURE_COUNT: 20
+FEATURE_SELECTION_KNEEDLE_SENSITIVITY: 1.0
+FEATURE_SELECTION_KNEEDLE_CURVE: convex
+FEATURE_SELECTION_KNEEDLE_DIRECTION: decreasing
+FEATURE_SELECTION_REQUIRE_KNEEDLE: true
 FEATURE_SELECTION_IMPORTANCE_FLOOR: 0.0
 FEATURE_SELECTION_TREE_MODEL: gbm
 FEATURE_SELECTION_TREE_N_ESTIMATORS: 200

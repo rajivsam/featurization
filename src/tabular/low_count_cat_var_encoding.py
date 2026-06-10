@@ -7,32 +7,40 @@ def get_categorical_subset(context: dict, drop_filter: list = None) -> pd.DataFr
     """
     loader = context.get("loader")
     data = context.get("data")
-    metadata = loader.metadata
+    metadata = getattr(loader, "metadata", None) if loader is not None else context.get("metadata")
 
     if data is None or data.empty or metadata is None or metadata.empty:
         return pd.DataFrame()
 
-    # 1. Identify categorical candidates from metadata
-    # We look for attributes that are NOT flagged as numeric or geographic 
-    # and intersect them with pandas 'object' or 'category' types.
-    pandas_cats = data.select_dtypes(include=['object', 'category']).columns.tolist()
-    
-    # Metadata attribute names (normalized)
-    meta_attrs = [str(a).strip() for a in metadata['attribute_name'].unique()]
-    
-    # Intersection: Categorical according to both metadata and dtypes
-    cat_candidates = [c for c in pandas_cats if c in meta_attrs]
+    # 1. Identify candidates using OR logic:
+    #    - logical_type == categorical in metadata, OR
+    #    - pandas categorical-compatible dtypes in data.
+    pandas_cats_norm = {
+        str(c).lower().strip()
+        for c in data.select_dtypes(include=["object", "category", "string"]).columns.tolist()
+    }
+
+    logical_cats_norm = set()
+    if "logical_type" in metadata.columns and "attribute_name" in metadata.columns:
+        logical_cats_norm = {
+            str(attr).lower().strip()
+            for attr in metadata.loc[
+                metadata["logical_type"].astype(str).str.lower().str.strip() == "categorical",
+                "attribute_name",
+            ].tolist()
+        }
+
+    cat_candidates_norm = pandas_cats_norm.union(logical_cats_norm)
 
     # 2. Apply the drop filter
     if drop_filter:
-        cat_candidates = [c for c in cat_candidates if c not in drop_filter]
+        drop_filter_norm = {str(c).lower().strip() for c in drop_filter}
+        cat_candidates_norm = {c for c in cat_candidates_norm if c not in drop_filter_norm}
 
-    # 3. Robust column matching for the final subset
-    data_cols_lower = {str(c).lower().strip(): c for c in data.columns}
-    final_columns = []
-    for attr in cat_candidates:
-        clean_attr = str(attr).lower().strip()
-        if clean_attr in data_cols_lower:
-            final_columns.append(data_cols_lower[clean_attr])
+    # 3. Preserve original data column order in the returned subset.
+    final_columns = [
+        col for col in data.columns
+        if str(col).lower().strip() in cat_candidates_norm
+    ]
 
     return data[final_columns]

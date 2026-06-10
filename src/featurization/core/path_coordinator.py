@@ -47,6 +47,56 @@ class PathCoordinator:
         return int(self.config.get("FEATURE_SELECTION_TOP_K", 50))
 
     @property
+    def feature_selection_top_k_mode(self) -> str:
+        """Returns top-k strategy: fixed or kneedle."""
+        return str(self.config.get("FEATURE_SELECTION_TOP_K_MODE", "fixed")).strip().lower()
+
+    @property
+    def feature_selection_top_k_min(self) -> int:
+        """Returns minimum number of features to keep when auto-selecting top-k."""
+        return int(self.config.get("FEATURE_SELECTION_TOP_K_MIN", 1))
+
+    @property
+    def feature_selection_top_k_min_ratio(self) -> float:
+        """Returns minimum fraction of candidate features to retain during auto top-k."""
+        return float(self.config.get("FEATURE_SELECTION_TOP_K_MIN_RATIO", 0.0))
+
+    @property
+    def feature_selection_min_feature_count(self) -> int:
+        """Returns a hard minimum number of features to retain after knee selection."""
+        return int(self.config.get("FEATURE_SELECTION_MIN_FEATURE_COUNT", 0))
+
+    @property
+    def feature_selection_top_k_max(self) -> int:
+        """Returns maximum number of features to keep when auto-selecting top-k (<=0 means no max)."""
+        return int(self.config.get("FEATURE_SELECTION_TOP_K_MAX", 0))
+
+    @property
+    def feature_selection_target_feature_count(self) -> int:
+        """Returns an explicit target feature count override for kneedle mode."""
+        return int(self.config.get("FEATURE_SELECTION_TARGET_FEATURE_COUNT", 0))
+
+    @property
+    def feature_selection_kneedle_sensitivity(self) -> float:
+        """Returns S sensitivity parameter for KneeLocator-based top-k inference."""
+        return float(self.config.get("FEATURE_SELECTION_KNEEDLE_SENSITIVITY", 1.0))
+
+    @property
+    def feature_selection_kneedle_curve(self) -> str:
+        """Returns curve type for KneeLocator (typically convex for descending importances)."""
+        return str(self.config.get("FEATURE_SELECTION_KNEEDLE_CURVE", "convex")).strip().lower()
+
+    @property
+    def feature_selection_kneedle_direction(self) -> str:
+        """Returns direction for KneeLocator (typically decreasing for descending importances)."""
+        return str(self.config.get("FEATURE_SELECTION_KNEEDLE_DIRECTION", "decreasing")).strip().lower()
+
+    @property
+    def feature_selection_require_kneedle(self) -> bool:
+        """Returns whether kneedle mode must fail when KneeLocator is unavailable or unstable."""
+        return bool(self.config.get("FEATURE_SELECTION_REQUIRE_KNEEDLE", False))
+
+    @property
     def feature_selection_importance_floor(self) -> float:
         """Returns minimum feature importance required for tree-based selection."""
         return float(self.config.get("FEATURE_SELECTION_IMPORTANCE_FLOOR", 0.0))

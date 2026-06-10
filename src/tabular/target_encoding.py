@@ -1,13 +1,20 @@
 import pandas as pd
 
+from tabular.modeling_filter import drop_leakage_prone_columns
 
-def select_categorical_columns(data: pd.DataFrame, exclude_cols: list[str] | None = None) -> list[str]:
+
+def select_categorical_columns(
+    data: pd.DataFrame,
+    exclude_cols: list[str] | None = None,
+    exclude_name_patterns: list[str] | tuple[str, ...] | None = None,
+) -> list[str]:
     """Selects categorical columns using pandas dtypes and excludes explicit columns."""
     if data is None or data.empty:
         return []
 
+    safe_data = drop_leakage_prone_columns(data=data, patterns=exclude_name_patterns)
     exclude = set(exclude_cols or [])
-    cat_cols = data.select_dtypes(include=["object", "category", "string"]).columns.tolist()
+    cat_cols = safe_data.select_dtypes(include=["object", "category", "string"]).columns.tolist()
     return [c for c in cat_cols if c not in exclude]
 
 

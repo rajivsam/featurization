@@ -22,6 +22,11 @@ Key fields in featurizer_config.yaml:
 - FEATURE_SELECTION_METHOD
 - FEATURE_SELECTION_TREE_MODEL
 - FEATURE_SELECTION_TOP_K
+- FEATURE_SELECTION_TOP_K_MODE
+- FEATURE_SELECTION_TOP_K_MIN_RATIO
+- FEATURE_SELECTION_MIN_FEATURE_COUNT
+- FEATURE_SELECTION_TARGET_FEATURE_COUNT
+- FEATURE_SELECTION_REQUIRE_KNEEDLE
 - FEATURE_SELECTION_IMPORTANCE_FLOOR
 - FEATURE_SELECTION_TREE_N_ESTIMATORS
 - FEATURE_SELECTION_TREE_LEARNING_RATE
@@ -80,6 +85,11 @@ Creates dataset_split = train/val with stratification by loan_status_r.
 ### Stage 12: target_encode_categorical_vars
 Fits TargetEncoder on train only; transforms modeling and active with train-fitted artifact.
 
+Current safeguards:
+- stage requires explicit exclusion policy (exclude_cols and/or exclude_name_patterns)
+- borrower geographic source subset is excluded before encoding
+- when raw and _rcs categorical variants both exist, only _rcs variants are encoded
+
 ### Stage 13: harmonize_and_project_feature_space
 Selects canonical feature schema from train partition and projects modeled + active partitions.
 
@@ -87,6 +97,13 @@ Feature selection behavior:
 - threshold mode: non-null and uniqueness constraints
 - tree_ensemble mode: supervised importance ranking using gbm/random_forest/xgboost
 - always fit on train only
+- top-k can be fixed or kneedle-driven
+- supports conservative ratio floor and explicit target feature count override
+- strict kneedle mode can fail fast and require manual DS review if knee is unstable
+
+Diagnostics:
+- prints feature-selection summary (candidate count, selected count, k, mode)
+- saves feature importance knee-curve image to featurization output directory
 
 ### Stage 14: merge_modeled_and_active_partitions
 Concatenates projected modeled and active partitions into one aligned output.
@@ -114,6 +131,10 @@ Final persisted output (featurized_data.csv) includes:
 Final model-ready export (model_ready_numeric_data.csv):
 - numeric and bool columns only
 - built from final stage output
+
+CSV persistence behavior:
+- featurized_data.csv and model_ready_numeric_data.csv are written with index=False
+- no record_id/Unnamed index artifact columns are persisted
 
 ## 6. Code Map
 

@@ -4,13 +4,14 @@ Use this document as the first-read initialization context for coding sessions.
 
 ## Session Start Checklist
 1. Read this file first, then read active docs listed in Canonical Context.
-2. Confirm current pair of baseline commits:
-    - Package repo: d7c487d
-    - Workspace repo: 4ef0bc5
+2. Confirm current pair of baseline commits (refresh before release commit if this stash changed).
 3. Confirm stage contract remains method(context, stage_cfg) -> DataFrame.
 4. Confirm active categorical suffix is _rcs.
 5. Confirm current input data anchor is data/dd_cleaner/sba_loans_user_cleaned.csv.
-6. Run package test smoke check: tests/test_sba_pipeline.py.
+6. Run package test smoke checks:
+    - tests/test_sba_pipeline.py
+    - tests/test_low_count_cat_var_encoding.py
+    - tests/test_feature_space.py
 7. Route new changes using the Two-Repo Workflow rules below before committing.
 
 ## Canonical Context
@@ -85,10 +86,16 @@ Use this document as the first-read initialization context for coding sessions.
 - target_encode_categorical_vars:
     - Fits TargetEncoder on train only.
     - Transforms modeling and active holdout with same train-fitted encoder.
+    - Enforces explicit exclusion policy from stage config.
+    - Reuses borrower geographic subset drop-list to block geo source columns.
+    - Encodes only rarity-corrected categorical variants when both raw and _rcs exist.
 - harmonize_and_project_feature_space:
     - Selects canonical features on train using configured method:
         - threshold mode, or
         - tree_ensemble mode (gbm/random_forest/xgboost).
+    - Supports fixed or kneedle feature-count selection.
+    - Supports explicit FEATURE_SELECTION_TARGET_FEATURE_COUNT override.
+    - Emits feature-selection summary and knee-curve PNG artifact.
     - Projects modeled and active data into one aligned schema.
 - merge_modeled_and_active_partitions:
     - Merges projected modeled and active partitions into one output dataset.
@@ -99,17 +106,20 @@ Use this document as the first-read initialization context for coding sessions.
 - Prefer real dataset validation over mocked data.
 - Keep stage outputs index-aligned with current survivor universe.
 - Only final merge stage may intentionally re-introduce indices (active partition), via allow_new_indices.
+- Persisted CSV outputs must be written with index=False (no record_id/Unnamed index artifact columns).
 
 ## Validation Baseline
 - test files:
     - tests/test_sba_pipeline.py
     - tests/test_merge_ops.py
-- latest status: passing for merge package component + hybrid pipeline + tree-based selection wiring.
+    - tests/test_feature_space.py
+    - tests/test_low_count_cat_var_encoding.py
+- latest status: passing for merge package component + hybrid pipeline + tree-based selection wiring + categorical OR tagging + kneedle controls.
 
 ## Next Implementation Boundary
 - Current session endpoint: produce model_ready_numeric_data.csv from full pipeline run.
-- Current feature selection mode: config-driven threshold or tree_ensemble.
-- Tree selector parameters are wired through:
+- Current feature selection mode: config-driven threshold or tree_ensemble with kneedle controls.
+- Tree selector + kneedle parameters are wired through:
     - featurizer_config.yaml
     - src/featurization/core/path_coordinator.py
     - src/featurization/core/featurization_init.py
@@ -147,16 +157,20 @@ Use this document as the first-read initialization context for coding sessions.
 
 ## Session Sign-Off (2026-06-10)
 - Completed in package repo:
-    - Hybrid front section (categorical/numerical/geo prep + two merges).
-    - Tree-based feature selection integration with config-driven parameters.
-    - Merge promoted to package component: src/tabular/merge_ops.py.
-    - Documentation refresh: README + pipeline/config/path docs.
-    - Added merge unit tests: tests/test_merge_ops.py.
+    - Added strict leakage safeguards and configurable exclusion patterns across categorical encoding and feature selection.
+    - Added kneedle-based feature-count controls with strict-mode behavior and explicit target override.
+    - Added knee-curve plotting support and dependency plumbing.
+    - Updated CSV persistence to index=False for featurized and model-ready outputs.
+    - Updated categorical tagging to OR logic: logical_type=categorical OR pandas categorical-compatible dtype.
+    - Added/updated tests:
+        - tests/test_merge_ops.py
+        - tests/test_feature_space.py
+        - tests/test_low_count_cat_var_encoding.py
 - Validation run:
-    - pytest -q tests/test_merge_ops.py tests/test_sba_pipeline.py
+    - pytest -q tests/test_feature_space.py tests/test_low_count_cat_var_encoding.py tests/test_merge_ops.py tests/test_sba_pipeline.py
     - Result: passing.
 - Repo state:
-    - Package repo committed and pushed (d7c487d).
-    - SBA workspace repo intentionally left untouched.
+    - Package repo has coordinated updates across core, tabular modules, configs, docs, and tests.
+    - SBA workspace wrapper/config updated for explicit leakage controls and runtime diagnostics.
 
 Last updated: 2026-06-10

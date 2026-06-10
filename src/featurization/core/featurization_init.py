@@ -39,6 +39,30 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
         ),
         "FEATURE_SELECTION_METHOD": existing_config.get("FEATURE_SELECTION_METHOD", "tree_ensemble"),
         "FEATURE_SELECTION_TOP_K": existing_config.get("FEATURE_SELECTION_TOP_K", 50),
+        "FEATURE_SELECTION_TOP_K_MODE": existing_config.get("FEATURE_SELECTION_TOP_K_MODE", "fixed"),
+        "FEATURE_SELECTION_TOP_K_MIN": existing_config.get("FEATURE_SELECTION_TOP_K_MIN", 1),
+        "FEATURE_SELECTION_TOP_K_MIN_RATIO": existing_config.get(
+            "FEATURE_SELECTION_TOP_K_MIN_RATIO", 0.0
+        ),
+        "FEATURE_SELECTION_MIN_FEATURE_COUNT": existing_config.get(
+            "FEATURE_SELECTION_MIN_FEATURE_COUNT", 0
+        ),
+        "FEATURE_SELECTION_TOP_K_MAX": existing_config.get("FEATURE_SELECTION_TOP_K_MAX", 0),
+        "FEATURE_SELECTION_TARGET_FEATURE_COUNT": existing_config.get(
+            "FEATURE_SELECTION_TARGET_FEATURE_COUNT", 0
+        ),
+        "FEATURE_SELECTION_KNEEDLE_SENSITIVITY": existing_config.get(
+            "FEATURE_SELECTION_KNEEDLE_SENSITIVITY", 1.0
+        ),
+        "FEATURE_SELECTION_KNEEDLE_CURVE": existing_config.get(
+            "FEATURE_SELECTION_KNEEDLE_CURVE", "convex"
+        ),
+        "FEATURE_SELECTION_KNEEDLE_DIRECTION": existing_config.get(
+            "FEATURE_SELECTION_KNEEDLE_DIRECTION", "decreasing"
+        ),
+        "FEATURE_SELECTION_REQUIRE_KNEEDLE": existing_config.get(
+            "FEATURE_SELECTION_REQUIRE_KNEEDLE", False
+        ),
         "FEATURE_SELECTION_IMPORTANCE_FLOOR": existing_config.get(
             "FEATURE_SELECTION_IMPORTANCE_FLOOR", 0.0
         ),

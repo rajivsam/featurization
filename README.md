@@ -13,10 +13,14 @@ The pipeline writes two CSV outputs:
 - featurized_data.csv: consolidated engineered dataset (modeled + active partitions)
 - model_ready_numeric_data.csv: numeric model-ready export from the final stage output
 
+Additional diagnostic artifact:
+- feature_selection_knee_curve.png: ranked feature-importance knee plot saved in the featurization output directory
+
 For the current SBA flow, the model-ready dataset is:
 - numeric/bool only
 - train-fitted feature-selected
 - schema-aligned across train/val/active
+- persisted with index=False (no index artifact column)
 
 ## Core Concepts
 
@@ -51,6 +55,9 @@ Leakage-safe modeling section:
 13. harmonize_and_project_feature_space
 14. merge_modeled_and_active_partitions
 
+Current encoding rule:
+- if both raw and rarity-corrected categorical variants exist (x and x_rcs), only x_rcs is target-encoded
+
 ## Tree-Based Feature Selection
 
 Feature selection runs in harmonize_and_project_feature_space using train rows only.
@@ -65,6 +72,13 @@ Supported tree models:
 - xgboost (optional dependency)
 
 All selector choices are config-driven via featurizer_config.yaml and surfaced through PathCoordinator (no stage-level hardcoded constants).
+
+Feature-count tuning for kneedle mode:
+- FEATURE_SELECTION_TOP_K_MODE: kneedle
+- FEATURE_SELECTION_TOP_K_MIN_RATIO: conservative default floor, e.g. 0.5
+- FEATURE_SELECTION_MIN_FEATURE_COUNT: hard floor for retained features
+- FEATURE_SELECTION_TARGET_FEATURE_COUNT: explicit count override when the curve is too aggressive
+- FEATURE_SELECTION_REQUIRE_KNEEDLE: fail loudly if the knee cannot be determined
 
 ## Repository Organization
 

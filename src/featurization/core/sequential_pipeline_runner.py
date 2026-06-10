@@ -170,8 +170,7 @@ class PipelineRunner:
         
         output_path = resolver.featurized_dataset_path
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        # Save with index=True to preserve the record_id anchor
-        final_df.to_csv(output_path)
+        final_df.to_csv(output_path, index=False)
 
         print(f"✅ Pipeline complete. Resulting dataset shape: {final_df.shape}")
         print(f"💾 Featurized data persisted to: {output_path}")
@@ -185,7 +184,7 @@ class PipelineRunner:
             model_ready_df = model_ready_df.sort_index(ascending=True)
             model_ready_path = resolver.model_ready_dataset_path
             os.makedirs(os.path.dirname(model_ready_path), exist_ok=True)
-            model_ready_df.to_csv(model_ready_path)
+            model_ready_df.to_csv(model_ready_path, index=False)
             print(f"💾 Model-ready data persisted to: {model_ready_path}")
 
         return final_df
