@@ -111,3 +111,85 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
     print(f"✨ Workspace Initialized: {config_path}")
     print(f"   - Metadata Anchor: {metadata_file}")
     print(f"   - Cleaned Data Anchor: {data_file}")
+
+
+def bootstrap_provisional_config(
+    working_dir: str,
+    metadata_file: str = "your_metadata.csv",
+    data_file: str = "your_cleaned_data.csv",
+    structural_type: str = "cross-sectional",
+    config_name: str = "provisional_featurization_config.yaml",
+    overwrite: bool = False,
+) -> str:
+    """Write a starter provisional featurization config file for a new project."""
+    abs_working_dir = os.path.abspath(working_dir)
+    os.makedirs(abs_working_dir, exist_ok=True)
+    config_path = os.path.join(abs_working_dir, config_name)
+
+    if os.path.exists(config_path) and not overwrite:
+        raise FileExistsError(
+            f"Provisional config already exists: {config_path}. Use overwrite=True to replace it."
+        )
+
+    template = f"""# Provisional featurization starter config
+# Update the anchors and pipeline definitions for your project.
+
+working_dir: "{abs_working_dir}"
+structural_type: "{structural_type}"
+country_code: "us"
+
+# Where cleaned data is written by your upstream preprocessing flow
+dd_cleaner_output_dir: "dd_cleaner"
+metadata_file: "{metadata_file}"
+featurization_input_data: "{data_file}"
+
+# Where featurization logic and stage wrappers live
+script_dir: "featurization_scripts"
+script_name: "featurization.py"
+
+# Output artifacts produced by the featurization pipeline
+featurization_output_dir: "featurization"
+featurized_data_file: "featurized_data.csv"
+model_ready_data_file: "model_ready_numeric_data.csv"
+quarantine_dir: "featurization/quarantine"
+feat_doc_directory: "featurization_docs"
+
+# Modeling and feature-selection defaults
+MIN_SUPPORT_THRESHOLD_CAT_VARS: 5
+VALIDATION_SIZE: 0.2
+FEATURE_SELECTION_MIN_NON_NULL_RATE: 0.01
+FEATURE_SELECTION_METHOD: "tree_ensemble"
+FEATURE_SELECTION_TOP_K: 50
+FEATURE_SELECTION_TOP_K_MODE: "fixed"
+FEATURE_SELECTION_TOP_K_MIN: 1
+FEATURE_SELECTION_TOP_K_MIN_RATIO: 0.0
+FEATURE_SELECTION_MIN_FEATURE_COUNT: 0
+FEATURE_SELECTION_TOP_K_MAX: 0
+FEATURE_SELECTION_TARGET_FEATURE_COUNT: 0
+FEATURE_SELECTION_KNEEDLE_SENSITIVITY: 1.0
+FEATURE_SELECTION_KNEEDLE_CURVE: "convex"
+FEATURE_SELECTION_KNEEDLE_DIRECTION: "decreasing"
+FEATURE_SELECTION_REQUIRE_KNEEDLE: false
+FEATURE_SELECTION_IMPORTANCE_FLOOR: 0.0
+FEATURE_SELECTION_TREE_MODEL: "gbm"
+FEATURE_SELECTION_TREE_N_ESTIMATORS: 200
+FEATURE_SELECTION_TREE_LEARNING_RATE: 0.05
+FEATURE_SELECTION_TREE_MAX_DEPTH: 3
+FEATURE_SELECTION_TREE_SUBSAMPLE: 0.8
+FEATURE_SELECTION_TREE_RANDOM_STATE: 42
+MODEL_READY_NUMERIC_ONLY: true
+
+# Pipeline: ordered list of stage dictionaries
+pipeline:
+  - name: "Example Feature Stage"
+    method: "example_feature_stage"
+    entity: "System"
+    sub_filter: "example"
+    allow_new_indices: false
+"""
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        f.write(template)
+
+    print(f"✨ Provisional config created: {config_path}")
+    return config_path

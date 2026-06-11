@@ -94,6 +94,21 @@ featurization-cli init \
   --metadata-file your_metadata.csv \
   --data-file your_cleaned_dataset.csv
 
+Create a provisional starter config:
+
+featurization-cli bootstrap \
+  --working-dir /path/to/workspace \
+  --metadata-file your_metadata.csv \
+  --data-file your_cleaned_dataset.csv
+
+Use `--overwrite` to replace an existing provisional config file if needed:
+
+featurization-cli bootstrap \
+  --working-dir /path/to/workspace \
+  --metadata-file your_metadata.csv \
+  --data-file your_cleaned_dataset.csv \
+  --overwrite
+
 Run the pipeline:
 
 featurization-cli run --working-dir /path/to/workspace

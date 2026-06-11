@@ -3,7 +3,10 @@ import sys
 import os
 import yaml
 from featurization.core.sequential_pipeline_runner import PipelineRunner
-from featurization.core.featurization_init import initialize_config
+from featurization.core.featurization_init import (
+    initialize_config,
+    bootstrap_provisional_config,
+)
 from featurization.core.path_coordinator import PathCoordinator
 
 def main():
@@ -48,6 +51,42 @@ def main():
     check_parser.add_argument("--name", required=True, help="Stage name to verify.")
     check_parser.add_argument("--config", default="featurizer_config.yaml", help="Config filename.")
 
+    # --- Bootstrap Command ---
+    bootstrap_parser = subparsers.add_parser(
+        "bootstrap", help="Create a provisional starter featurization config file."
+    )
+    bootstrap_parser.add_argument(
+        "--working-dir",
+        required=True,
+        help="Path to the workflow directory where the provisional config will be written."
+    )
+    bootstrap_parser.add_argument(
+        "--config-name",
+        default="provisional_featurization_config.yaml",
+        help="Filename for the provisional configuration YAML."
+    )
+    bootstrap_parser.add_argument(
+        "--metadata-file",
+        default="your_metadata.csv",
+        help="Placeholder metadata filename for the starter config."
+    )
+    bootstrap_parser.add_argument(
+        "--data-file",
+        default="your_cleaned_data.csv",
+        help="Placeholder cleaned data filename for the starter config."
+    )
+    bootstrap_parser.add_argument(
+        "--structural-type",
+        choices=["cross-sectional", "longitudinal", "panel"],
+        default="cross-sectional",
+        help="Structural type placeholder for the starter config."
+    )
+    bootstrap_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing provisional config if it already exists."
+    )
+
     # --- Run Command ---
     run_parser = subparsers.add_parser("run", help="Execute the featurization pipeline.")
     run_parser.add_argument(
@@ -87,6 +126,24 @@ def main():
                 args.structural_type
             )
             print("✅ Initialization Complete.")
+            return
+
+        if args.command == "bootstrap":
+            if not os.path.isdir(args.working_dir):
+                os.makedirs(args.working_dir, exist_ok=True)
+            try:
+                config_path = bootstrap_provisional_config(
+                    args.working_dir,
+                    metadata_file=args.metadata_file,
+                    data_file=args.data_file,
+                    structural_type=args.structural_type,
+                    config_name=args.config_name,
+                    overwrite=args.overwrite,
+                )
+                print(f"✅ Provisional config written: {config_path}")
+            except FileExistsError as exc:
+                print(f"❌ {exc}")
+                sys.exit(1)
             return
 
         if args.command == "check":

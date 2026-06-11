@@ -39,6 +39,30 @@ Important file/path anchors:
 - Metadata: data/dd_cleaner/sba_loans_metadata_table.csv
 - User stage logic: featurization_scripts/featurization.py
 
+## 2.1. Provisional Config Bootstrap
+A starter provisional configuration can be generated via the package CLI. This writes a `provisional_featurization_config.yaml` file with placeholder anchors and a sample pipeline stage.
+
+Example:
+
+```bash
+featurization-cli bootstrap \
+  --working-dir /path/to/workspace \
+  --metadata-file your_metadata.csv \
+  --data-file your_cleaned_dataset.csv
+```
+
+To replace an existing provisional config file, add `--overwrite`:
+
+```bash
+featurization-cli bootstrap \
+  --working-dir /path/to/workspace \
+  --metadata-file your_metadata.csv \
+  --data-file your_cleaned_dataset.csv \
+  --overwrite
+```
+
+After bootstrap, revise the generated YAML to match project-specific paths, file names, and staged transformation logic.
+
 ## 3. Stage Sequence (Current)
 
 Feature-assembly front section:
