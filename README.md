@@ -1,73 +1,68 @@
 # KMDS Featurization
 
-This repository provides a configurable, stage-based featurization engine for KMDS modeling workflows.
+This repository provides a configurable, stage-based featurization package for KMDS project datasets.
 
-The design goal is simple:
+It is designed to be dataset-agnostic at the package level:
 
-- keep stage logic understandable and composable
-- keep orchestration/configuration centralized
-- keep modeling flow leakage-safe (fit on train only, reuse on val/active)
+- stage orchestration is generic and configuration-driven
+- reusable feature logic lives in package modules
+- modeling flow remains leakage-safe (fit on train only, reuse on val/active)
+
+SBA-specific file names and stage examples in this repo are reference defaults, not a package constraint.
 
 ## What This Produces
 
 The pipeline writes two CSV outputs:
 
-- featurized_data.csv: consolidated engineered dataset (modeled + active partitions)
+- featurized_data.csv: consolidated engineered dataset
 - model_ready_numeric_data.csv: numeric model-ready export from the final stage output
 
 Additional diagnostic artifact:
 
-- feature_selection_knee_curve.png: ranked feature-importance knee plot saved in the featurization output directory
+- feature_selection_knee_curve.png: ranked feature-importance knee plot in the featurization output directory
 
-For the current SBA flow, the model-ready dataset is:
+Model-ready output behavior:
 
-- numeric/bool only
-- train-fitted feature-selected
-- schema-aligned across train/val/active
-- persisted with index=False (no index artifact column)
+- numeric and bool columns only
+- train-fitted feature-selected schema
+- aligned schema across modeled and active partitions
+- persisted with index=False to avoid index artifact columns
 
-## Core Concepts
+## Core Runtime Contract
 
 - Anchor index: record_id
 - Stage contract: method(context, stage_cfg) -> DataFrame
-- Waterfall behavior: each stage can shrink survivor rows by index
-- Horizontal feature assembly: stage outputs are concatenated by index
-- Controlled index expansion: only stages marked allow_new_indices may re-introduce rows
+- Waterfall behavior: each stage can reduce the survivor universe by index
+- Horizontal assembly: stage outputs are concatenated by index
+- Controlled expansion: only stages with allow_new_indices may intentionally re-introduce rows
 
-## Pipeline Layout (Current Hybrid Design)
+## Package Architecture
 
-Front section (feature assembly):
+Core orchestration:
 
-1. record_id_definition
-2. entity_coding
-3. prepare_categorical_data
-4. prepare_numerical_data
-5. merge_categorical_and_numerical
-6. merge_with_entity_coding
+- src/featurization/core/sequential_pipeline_runner.py
+- src/featurization/core/path_coordinator.py
+- src/featurization/core/featurization_init.py
 
-Merge stage design:
+Reusable tabular modules:
 
-- package component: src/tabular/merge_ops.py
-- user wrappers: featurization_scripts/featurization.py
-- merge key: record_id index
+- src/tabular/modeling_filter.py
+- src/tabular/train_val_split.py
+- src/tabular/target_encoding.py
+- src/tabular/feature_space.py
+- src/tabular/low_count_cat_var_encoding.py
+- src/tabular/hierarchical_low_count_var_encoding.py
+- src/tabular/merge_ops.py
 
-Leakage-safe modeling section:
-7. low_count_featurization_of_cat_vars
-8. hierarchical_low_count_var_encoding
-9. target_status_recoding
-10. filter_modeling_universe
-11. stratified_train_val_split
-12. target_encode_categorical_vars
-13. harmonize_and_project_feature_space
-14. merge_modeled_and_active_partitions
+Design split:
 
-Current encoding rule:
+- Row-selection components decide participation and partitioning
+- Column-selection components decide engineering, encoding, and projection
+- Assembly components perform index-aligned merges
 
-- if both raw and rarity-corrected categorical variants exist (x and x_rcs), only x_rcs is target-encoded
+## Feature Selection
 
-## Tree-Based Feature Selection
-
-Feature selection runs in harmonize_and_project_feature_space using train rows only.
+Feature selection runs in harmonize_and_project_feature_space on train rows only.
 
 Supported selector modes:
 
@@ -80,81 +75,45 @@ Supported tree models:
 - random_forest
 - xgboost (optional dependency)
 
-All selector choices are config-driven via featurizer_config.yaml and surfaced through PathCoordinator (no stage-level hardcoded constants).
+All selector behavior is configuration-driven through featurizer_config.yaml.
 
-Feature-count tuning for kneedle mode:
+Key kneedle controls:
 
-- FEATURE_SELECTION_TOP_K_MODE: kneedle
-- FEATURE_SELECTION_TOP_K_MIN_RATIO: conservative default floor, e.g. 0.5
-- FEATURE_SELECTION_MIN_FEATURE_COUNT: hard floor for retained features
-- FEATURE_SELECTION_TARGET_FEATURE_COUNT: explicit count override when the curve is too aggressive
-- FEATURE_SELECTION_REQUIRE_KNEEDLE: fail loudly if the knee cannot be determined
-
-## Repository Organization
-
-- src/featurization/core: orchestration, configuration bootstrap, path resolution
-- src/featurization/transforms: reusable transformation primitives
-- src/tabular: reusable tabular feature modules (encoding, splitting, feature space)
-- src/tabular/merge_ops.py: reusable index-aligned tabular merge helper
-- tests: package-level smoke and behavior checks
-- documents: architecture and configuration references
-
-## Package Component Buckets
-
-The tabular package modules are intentionally split into two modeling buckets:
-
-- Row-selection components:
-
-  - src/tabular/modeling_filter.py
-  - src/tabular/train_val_split.py
-  - Purpose: decide which records participate in training and how records are partitioned.
-- Column-selection components:
-
-  - src/tabular/feature_space.py
-  - src/tabular/target_encoding.py
-  - src/tabular/low_count_cat_var_encoding.py
-  - src/tabular/hierarchical_low_count_var_encoding.py
-  - Purpose: decide which feature columns are engineered, selected, encoded, and projected.
-- Assembly components:
-
-  - src/tabular/merge_ops.py
-  - Purpose: index-aligned horizontal composition of prepared payloads.
+- FEATURE_SELECTION_TOP_K_MODE
+- FEATURE_SELECTION_TOP_K_MIN_RATIO
+- FEATURE_SELECTION_MIN_FEATURE_COUNT
+- FEATURE_SELECTION_TARGET_FEATURE_COUNT
+- FEATURE_SELECTION_REQUIRE_KNEEDLE
 
 ## CLI
 
-Initialize config:
+Initialize a workspace config:
 
-```bash
 featurization-cli init \
   --working-dir /path/to/workspace \
-  --metadata-file sba_loans_metadata_table.csv \
-  --data-file sba_loans_user_cleaned.csv
-```
+  --metadata-file your_metadata.csv \
+  --data-file your_cleaned_dataset.csv
 
-Run pipeline:
+Run the pipeline:
 
-```bash
 featurization-cli run --working-dir /path/to/workspace
-```
 
-Run smoke test in this repo:
+Run package smoke tests:
 
-```bash
 pytest -q tests/test_sba_pipeline.py
-```
 
 ## How To Extend Safely
 
-1. Add reusable logic in src/tabular first whenever possible.
-2. Keep stage wrappers in workspace featurization_scripts/featurization.py thin and explicit.
-3. Add new tunables to:
+1. Put reusable transformations in src/tabular first.
+2. Keep workspace stage wrappers thin and explicit.
+3. Add new tunables in all three locations:
    - featurizer_config.yaml
    - src/featurization/core/path_coordinator.py
    - src/featurization/core/featurization_init.py
-4. Preserve leakage rules:
+4. Preserve leakage-safe modeling flow:
    - fit artifacts on train only
-   - transform val/active using train-fitted artifacts
-5. Validate with tests after each change.
+   - transform val/active with train-fitted artifacts
+5. Validate with package tests and workspace integration runs.
 
 ## Recommended Read Order
 

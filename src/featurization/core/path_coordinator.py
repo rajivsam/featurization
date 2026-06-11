@@ -175,6 +175,20 @@ class PathCoordinator:
         return os.path.join(abs_dir, filename)
 
     @property
+    def feature_selection_knee_curve_file(self) -> str:
+        """Returns the filename for the feature selection knee curve PNG."""
+        return self.config.get("feature_selection_knee_curve_file", "feature_selection_knee_curve.png")
+
+    @property
+    def feature_selection_knee_curve_path(self) -> str:
+        """Output path for the feature selection knee curve artifact."""
+        feat_dir = self.config.get("featurization_output_dir", "featurization")
+        feat_dir = self._remove_anchor_prefix(feat_dir, "data")
+        filename = self.feature_selection_knee_curve_file
+        abs_dir = os.path.join(self.working_dir, "data", feat_dir)
+        return os.path.join(abs_dir, filename)
+
+    @property
     def featurized_dataset_path(self) -> str:
         """Output path for the processed featurized CSV."""
         feat_dir = self.config.get("featurization_output_dir", "featurization")

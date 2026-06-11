@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 src/featurization/__init__.py
 src/featurization/cli.py
+src/featurization/notebook_utils.py
 src/featurization/py.typed
 src/featurization/utils.py
 src/featurization/core/__init__.py
@@ -32,5 +33,6 @@ tests/test_initialization.py
 tests/test_leakage_guards.py
 tests/test_low_count_cat_var_encoding.py
 tests/test_merge_ops.py
+tests/test_notebook_utils.py
 tests/test_sba_pipeline.py
 tests/test_utils.py

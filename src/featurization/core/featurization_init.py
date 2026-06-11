@@ -80,7 +80,10 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
         "FEATURE_SELECTION_TREE_RANDOM_STATE": existing_config.get(
             "FEATURE_SELECTION_TREE_RANDOM_STATE", 42
         ),
-        "MODEL_READY_NUMERIC_ONLY": existing_config.get("MODEL_READY_NUMERIC_ONLY", True)
+        "MODEL_READY_NUMERIC_ONLY": existing_config.get("MODEL_READY_NUMERIC_ONLY", True),
+        "feature_selection_knee_curve_file": existing_config.get(
+            "feature_selection_knee_curve_file", "feature_selection_knee_curve.png"
+        ),
     }
 
     # 3. Preserve any custom stage definitions or extra settings from the existing config
