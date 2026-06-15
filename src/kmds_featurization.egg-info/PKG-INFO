@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: kmds-featurization
-Version: 0.1.5
+Version: 0.2.0
 Summary: KMDS Featurization Service and Orchestration Pipeline
 License-Expression: LicenseRef-Proprietary
 Classifier: Programming Language :: Python :: 3
@@ -117,6 +117,21 @@ featurization-cli init \
   --working-dir /path/to/workspace \
   --metadata-file your_metadata.csv \
   --data-file your_cleaned_dataset.csv
+
+Create a provisional starter config:
+
+featurization-cli bootstrap \
+  --working-dir /path/to/workspace \
+  --metadata-file your_metadata.csv \
+  --data-file your_cleaned_dataset.csv
+
+Use `--overwrite` to replace an existing provisional config file if needed:
+
+featurization-cli bootstrap \
+  --working-dir /path/to/workspace \
+  --metadata-file your_metadata.csv \
+  --data-file your_cleaned_dataset.csv \
+  --overwrite
 
 Run the pipeline:
 

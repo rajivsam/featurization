@@ -1,13 +1,16 @@
 import argparse
 import sys
 import os
+import json
 import yaml
+import pandas as pd
 from featurization.core.sequential_pipeline_runner import PipelineRunner
 from featurization.core.featurization_init import (
     initialize_config,
     bootstrap_provisional_config,
 )
 from featurization.core.path_coordinator import PathCoordinator
+from featurization.feature_advisor_util import FeatureAdvisorPromptConfig, FeatureAdvisorUtil
 
 def main():
     parser = argparse.ArgumentParser(
@@ -108,6 +111,54 @@ def main():
         help="Path to the environment config layout file."
     )
 
+    # --- Advise Command ---
+    advise_parser = subparsers.add_parser(
+        "advise", help="Create feature advisor recommendations from workspace metadata."
+    )
+    advise_parser.add_argument(
+        "--working-dir",
+        required=True,
+        help="Path to the workspace directory containing featurizer_config.yaml."
+    )
+    advise_parser.add_argument(
+        "--config",
+        default="featurizer_config.yaml",
+        help="Config filename to load from the workspace root."
+    )
+    advise_parser.add_argument(
+        "--metadata-file",
+        help="Optional explicit metadata file path if not using the config default."
+    )
+    advise_parser.add_argument(
+        "--prompt-config",
+        default="feature_advisor_prompt.yaml",
+        help="Package prompt config filename to use for the advisor."
+    )
+    advise_parser.add_argument(
+        "--model-intent",
+        default="catboost",
+        help="Model intent guiding the advisor recommendation logic."
+    )
+    advise_parser.add_argument(
+        "--llm-response-file",
+        help="Optional path to a JSON response file produced by an LLM."
+    )
+    advise_parser.add_argument(
+        "--ollama-model",
+        help="Ollama model name to use for live LLM recommendations."
+    )
+    advise_parser.add_argument(
+        "--ollama-timeout",
+        type=int,
+        default=300,
+        help="Timeout in seconds for the Ollama model call."
+    )
+    advise_parser.add_argument(
+        "--use-mock",
+        action="store_true",
+        help="Use a mock LLM response for local validation."
+    )
+
     args = parser.parse_args()
     
     if not args.command:
@@ -160,6 +211,71 @@ def main():
             else:
                 print(f"❌ Stage '{args.name}' is NOT configured.")
                 sys.exit(1)
+            return
+
+        if args.command == "advise":
+            config_path = os.path.join(args.working_dir, args.config)
+            if not os.path.exists(config_path):
+                print(f"❌ Error: Config file not found at {config_path}")
+                sys.exit(1)
+
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+
+            resolver = PathCoordinator(working_dir=args.working_dir, config=config)
+            metadata_path = args.metadata_file or resolver.metadata_path
+            if not os.path.exists(metadata_path):
+                print(f"❌ Error: Metadata file not found at {metadata_path}")
+                sys.exit(1)
+
+            prompt_config = FeatureAdvisorPromptConfig.load_from_package(args.prompt_config)
+            advisor = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
+            metadata = pd.read_csv(metadata_path)
+
+            if args.llm_response_file:
+                if not os.path.exists(args.llm_response_file):
+                    print(f"❌ Error: LLM response file not found at {args.llm_response_file}")
+                    sys.exit(1)
+
+                def llm_response_fn(_prompt: str) -> str:
+                    with open(args.llm_response_file, "r", encoding="utf-8") as fh:
+                        return fh.read()
+
+            elif args.ollama_model or resolver.ollama_model_name:
+                model_name = args.ollama_model or resolver.ollama_model_name
+                llm_response_fn = advisor.llm_response_fn_from_ollama_model(
+                    model_name=model_name,
+                    timeout_seconds=args.ollama_timeout,
+                )
+
+            elif args.use_mock:
+                def llm_response_fn(prompt: str) -> str:
+                    records = metadata.head(5).to_dict(orient="records")
+                    response = []
+                    for rec in records:
+                        response.append({
+                            "attribute": rec.get("attribute"),
+                            "recommended_method": (
+                                "Native Model Handling"
+                                if args.model_intent.lower() in ["catboost", "xgboost", "lightgbm"]
+                                else "low_count_cat_var_encoding"
+                            ),
+                            "rationale": "Mock recommendation for notebook validation."
+                        })
+                    return json.dumps(response)
+            else:
+                print("❌ Error: Provide one of --llm-response-file, --ollama-model, or --use-mock to generate advisor recommendations.")
+                sys.exit(1)
+
+            recommendations = advisor.recommend(
+                metadata=metadata,
+                model_intent=args.model_intent,
+                llm_response_fn=llm_response_fn,
+            )
+
+            print("✅ Feature advisor recommendations generated.")
+            for name, path in advisor.get_output_paths().items():
+                print(f"- {name}: {path}")
             return
 
         if args.command == "run":

@@ -60,6 +60,22 @@ Design split:
 - Column-selection components decide engineering, encoding, and projection
 - Assembly components perform index-aligned merges
 
+## Feature Advisor Service
+
+This repository includes a value-added feature advisor service that generates featurization recommendations from your metadata table, input dataset, and downstream modeling choice.
+
+- Uses `metadata` and the input data file from `PathCoordinator`
+- Accepts explicit model intent such as `catboost`, `xgboost`, `lightgbm`, or classic models
+- Recommends native categorical handling for GBDT models when appropriate
+- Recommends explicit low-count, hierarchical, and target encoding strategies for non-GBDT targets
+- Saves recommendations as a CSV and Markdown artifact for review
+
+CLI usage:
+
+featurization-cli advise --working-dir /path/to/workspace --model-intent catboost
+
+Contact me if you want to see a demo of the feature advisor workflow.
+
 ## Feature Selection
 
 Feature selection runs in harmonize_and_project_feature_space on train rows only.

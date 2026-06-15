@@ -81,6 +81,7 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
             "FEATURE_SELECTION_TREE_RANDOM_STATE", 42
         ),
         "MODEL_READY_NUMERIC_ONLY": existing_config.get("MODEL_READY_NUMERIC_ONLY", True),
+        "OLLAMA_MODEL": existing_config.get("OLLAMA_MODEL", "llama3.2:latest"),
         "feature_selection_knee_curve_file": existing_config.get(
             "feature_selection_knee_curve_file", "feature_selection_knee_curve.png"
         ),
@@ -178,6 +179,7 @@ FEATURE_SELECTION_TREE_MAX_DEPTH: 3
 FEATURE_SELECTION_TREE_SUBSAMPLE: 0.8
 FEATURE_SELECTION_TREE_RANDOM_STATE: 42
 MODEL_READY_NUMERIC_ONLY: true
+OLLAMA_MODEL: "llama3.2:latest"
 
 # Pipeline: ordered list of stage dictionaries
 pipeline:

@@ -38,7 +38,10 @@ def build_notebook_resolver(notebook_dir: str, config_name: str = "featurizer_co
     """Builds a PathCoordinator from a notebook directory in a KMDS workspace."""
     workspace_root = resolve_notebook_workspace_root(notebook_dir, config_name=config_name)
     config = load_workspace_config_from_notebook_dir(notebook_dir, config_name=config_name)
-    return PathCoordinator(working_dir=workspace_root, config=config)
+    working_dir = config.get("working_dir", workspace_root)
+    if working_dir and not os.path.isabs(working_dir):
+        working_dir = os.path.abspath(os.path.join(workspace_root, working_dir))
+    return PathCoordinator(working_dir=working_dir, config=config)
 
 
 def get_featurization_artifact_paths(resolver: PathCoordinator) -> Dict[str, str]:

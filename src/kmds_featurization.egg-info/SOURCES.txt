@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 src/featurization/__init__.py
 src/featurization/cli.py
+src/featurization/feature_advisor_util.py
 src/featurization/notebook_utils.py
 src/featurization/py.typed
 src/featurization/utils.py
@@ -10,6 +11,7 @@ src/featurization/core/data_loader.py
 src/featurization/core/featurization_init.py
 src/featurization/core/path_coordinator.py
 src/featurization/core/sequential_pipeline_runner.py
+src/featurization/prompts/feature_advisor_prompt.yaml
 src/featurization/transforms/filters.py
 src/featurization/transforms/geo.py
 src/kmds_featurization.egg-info/PKG-INFO
@@ -28,11 +30,14 @@ src/tabular/merge_ops.py
 src/tabular/modeling_filter.py
 src/tabular/target_encoding.py
 src/tabular/train_val_split.py
+tests/test_bootstrap_config.py
+tests/test_feature_advisor_util.py
 tests/test_feature_space.py
 tests/test_initialization.py
 tests/test_leakage_guards.py
 tests/test_low_count_cat_var_encoding.py
 tests/test_merge_ops.py
 tests/test_notebook_utils.py
+tests/test_notebook_utils_working_dir.py
 tests/test_sba_pipeline.py
 tests/test_utils.py

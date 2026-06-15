@@ -132,6 +132,11 @@ class PathCoordinator:
         return int(self.config.get("FEATURE_SELECTION_TREE_RANDOM_STATE", 42))
 
     @property
+    def ollama_model_name(self) -> str:
+        """Returns the Ollama model name to use for live LLM recommendations."""
+        return str(self.config.get("OLLAMA_MODEL", "llama3.2:latest")).strip()
+
+    @property
     def model_ready_numeric_only(self) -> bool:
         """Returns whether model-ready export should contain numeric columns only."""
         return bool(self.config.get("MODEL_READY_NUMERIC_ONLY", True))

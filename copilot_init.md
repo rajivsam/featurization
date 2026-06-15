@@ -26,6 +26,10 @@ Execution requirements:
 6. Preserve generation of:
    - consolidated output file
    - model_ready_numeric_data.csv
+7. Include the feature advisor service as a value-added module:
+   - uses metadata, input data, and downstream model intent
+   - prefers native categorical handling for catboost/xgboost/lightgbm
+   - otherwise recommends explicit low-count/hierarchical/target encoding
 
 When done, run tests and report:
 

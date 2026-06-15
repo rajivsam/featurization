@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kmds-featurization"
-version = "0.1.5"
+version = "0.2.0"
 description = "KMDS Featurization Service and Orchestration Pipeline"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -35,6 +35,10 @@ featurization-cli = "featurization.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.package-data]
+"featurization" = ["prompts/*.yaml"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
