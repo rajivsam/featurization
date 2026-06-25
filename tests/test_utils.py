@@ -4,16 +4,18 @@ import yaml
 from featurization.core.featurization_init import initialize_config
 from featurization.core.path_coordinator import PathCoordinator
 from featurization.utils import get_entity_list
+from tests.helpers import get_workspace_dir, load_workspace_config
 
 def test_real_data_entity_extraction():
     """
     Validates get_entity_list utility using real data parameters.
     Adheres to Principle #1: No Mocking.
     """
-    # 1. Define Real Data Parameters (Consistent with test_initialization.py)
-    working_dir = "/home/rajiv/programming/dd_parser_cleaner_migration/sba_migration"
-    metadata_file = "sba_loans_metadata_table.csv"
-    data_file = "sba_loans_user_cleaned.csv"
+    # 1. Define Real Data Parameters from repository configuration
+    config = load_workspace_config()
+    working_dir = get_workspace_dir()
+    metadata_file = config.get("metadata_file", "sba_loans_metadata_table.csv")
+    data_file = config.get("featurization_input_data", "sba_loans_user_cleaned.csv")
     
     print(f"🧪 Testing Entity List Extraction on Real Data: {working_dir}")
     

@@ -3,6 +3,7 @@ import yaml
 import pandas as pd
 from featurization.core.sequential_pipeline_runner import PipelineRunner
 from featurization.core.path_coordinator import PathCoordinator
+from tests.helpers import get_workspace_dir, load_workspace_config
 
 
 def _col_as_series(df: pd.DataFrame, col_name: str) -> pd.Series:
@@ -17,7 +18,8 @@ def test_borrower_geo_pipeline_execution():
     Verifies end-to-end execution of the canonical SBA featurization pipeline.
     Ensures one consolidated output artifact is persisted with expected attributes.
     """
-    working_dir = "/home/rajiv/programming/dd_parser_cleaner_migration/sba_migration"
+    config = load_workspace_config()
+    working_dir = get_workspace_dir()
     config_path = os.path.join(working_dir, "featurizer_config.yaml")
     
     print(f"🧪 Running Borrower Geo Pipeline Test: {working_dir}")
@@ -87,7 +89,7 @@ def test_borrower_geo_pipeline_execution():
     assert os.path.exists(resolver.featurized_dataset_path), (
         f"Expected featurized output file missing at {resolver.featurized_dataset_path}"
     )
-    persisted_df = pd.read_csv(resolver.featurized_dataset_path)
+    persisted_df = pd.read_csv(resolver.featurized_dataset_path, low_memory=False)
     required_columns = [
         "borrower_latitude",
         "borrower_longitude",
@@ -103,7 +105,7 @@ def test_borrower_geo_pipeline_execution():
     assert os.path.exists(resolver.model_ready_dataset_path), (
         f"Expected model-ready output missing at {resolver.model_ready_dataset_path}"
     )
-    model_ready_df = pd.read_csv(resolver.model_ready_dataset_path)
+    model_ready_df = pd.read_csv(resolver.model_ready_dataset_path, low_memory=False)
     non_numeric_cols = model_ready_df.select_dtypes(exclude=["number", "bool"]).columns.tolist()
     assert not non_numeric_cols, f"Model-ready export contains non-numeric columns: {non_numeric_cols}"
     

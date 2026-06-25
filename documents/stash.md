@@ -31,7 +31,7 @@ Use this document as the first-read initialization context for coding sessions.
 
 ## Authoritative Paths
 - Repo config file: featurizer_config.yaml.
-- Working directory anchor: /home/rajiv/programming/dd_parser_cleaner_migration/sba_migration.
+- Working directory anchor: /home/rajiv/programming/kmds_migration/sba_migration.
 - Input data file: data/dd_cleaner/sba_loans_user_cleaned.csv.
 - Metadata file: data/dd_cleaner/sba_loans_metadata_table.csv.
 - User logic script: featurization_scripts/featurization.py.
@@ -132,7 +132,7 @@ Use this document as the first-read initialization context for coding sessions.
 - Repo roles:
     - Package repo (/home/rajiv/programming/featurization):
         - Owns runner/core interfaces, path coordination, package tests, and docs/stash.
-    - Workspace repo (/home/rajiv/programming/dd_parser_cleaner_migration/sba_migration):
+    - Workspace repo (/home/rajiv/programming/kmds_migration/sba_migration):
         - Owns featurization_scripts/featurization.py, real data config, and end-to-end integration runs.
 
 - Change routing rule:

@@ -4,12 +4,14 @@ import yaml
 from featurization.core.featurization_init import initialize_config
 from featurization.core.path_coordinator import PathCoordinator
 from featurization.core.data_loader import KMDSDataLoader
+from tests.helpers import get_workspace_dir, load_workspace_config
 
 def test_workspace_init():
-    # 1. Define Test Parameters
-    working_dir = "/home/rajiv/programming/dd_parser_cleaner_migration/sba_migration"
-    metadata_file = "sba_loans_metadata_table.csv"
-    data_file = "sba_loans_user_cleaned.csv"
+    # 1. Define Test Parameters from repository configuration
+    config = load_workspace_config()
+    working_dir = get_workspace_dir()
+    metadata_file = config.get("metadata_file", "sba_loans_metadata_table.csv")
+    data_file = config.get("featurization_input_data", "sba_loans_user_cleaned.csv")
     config_name = "featurizer_config.yaml"
     
     print(f"🧪 Testing Initialization for: {working_dir}")

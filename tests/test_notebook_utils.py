@@ -11,6 +11,7 @@ from featurization.notebook_utils import (
     load_featurized_dataset,
     load_model_ready_dataset,
 )
+from tests.helpers import get_workspace_dir, load_workspace_config
 
 
 def test_notebook_utils_returns_expected_paths(tmp_path):
@@ -114,7 +115,7 @@ def test_notebook_utils_rejects_invalid_notebook_workspace(tmp_path):
 
 
 def test_notebook_utils_resolves_workspace_artifacts():
-    working_dir = "/home/rajiv/programming/dd_parser_cleaner_migration/sba_migration"
+    working_dir = get_workspace_dir()
     config = {
         "featurization_output_dir": "featurization",
     }

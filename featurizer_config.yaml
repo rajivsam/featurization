@@ -1,4 +1,4 @@
-working_dir: /home/rajiv/programming/dd_parser_cleaner_migration/sba_migration
+working_dir: /home/rajiv/programming/kmds_migration/sba_migration
 pipeline:
 - name: Record ID Generation
   method: record_id_definition

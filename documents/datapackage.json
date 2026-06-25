@@ -1,0 +1,83 @@
+{
+  "name": "kmds-featurization-documents",
+  "title": "KMDS Featurization Documentation",
+  "description": "Documentation resources for the KMDS Featurization package, packaged for compatibility with Open Knowledge Foundation / Frictionless data package conventions.",
+  "version": "0.2.0",
+  "profile": "data-package",
+  "licenses": [
+    {
+      "name": "Proprietary",
+      "title": "Proprietary"
+    }
+  ],
+  "keywords": [
+    "featurization",
+    "pipeline",
+    "SBA",
+    "OKF",
+    "Frictionless",
+    "documentation"
+  ],
+  "resources": [
+    {
+      "name": "stash",
+      "path": "stash.md",
+      "title": "Featurization Stash",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "sba_pipeline_featurization",
+      "path": "sba_pipeline_featurization.md",
+      "title": "SBA Pipeline Featurization",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "config_blueprint",
+      "path": "config_blueprint.md",
+      "title": "Configuration Blueprint",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "path_coordinator_function",
+      "path": "path_coordinator_function.md",
+      "title": "Path Coordinator Function",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "feature_advisor_service",
+      "path": "feature_advisor_service.md",
+      "title": "Feature Advisor Service",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "categorical_var_encoder_guidelines",
+      "path": "categorical_var_encoder_guidelines.md",
+      "title": "Categorical Variable Encoder Guidelines",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "encoding_non_numerical_attrib",
+      "path": "encoding_non_numerical_attrib.md",
+      "title": "Encoding Non-Numerical Attributes",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "notebook_utils_usage",
+      "path": "notebook_utils_usage.md",
+      "title": "Notebook Utilities Usage",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "text_attribute_featurization",
+      "path": "text_attribute_featurization.md",
+      "title": "Text Attribute Featurization",
+      "mediaType": "text/markdown"
+    },
+    {
+      "name": "test_documentation_principles",
+      "path": "test_documentation_principles.md",
+      "title": "Test Documentation Principles",
+      "mediaType": "text/markdown"
+    }
+  ]
+}
