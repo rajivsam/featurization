@@ -31,10 +31,10 @@ Use this document as the first-read initialization context for coding sessions.
 
 ## Authoritative Paths
 - Repo config file: featurizer_config.yaml.
-- Working directory anchor: /home/rajiv/programming/kmds_migration/sba_migration.
-- Input data file: data/dd_cleaner/sba_loans_user_cleaned.csv.
-- Metadata file: data/dd_cleaner/sba_loans_metadata_table.csv.
-- User logic script: featurization_scripts/featurization.py.
+- Workspace `working_dir`: configured in `featurizer_config.yaml`; the actual absolute path varies by installation.
+- Input data file: `data/dd_cleaner/sba_loans_user_cleaned.csv` relative to the workspace `working_dir`.
+- Metadata file: `data/dd_cleaner/sba_loans_metadata_table.csv` relative to the workspace `working_dir`.
+- User logic script: `featurization_scripts/featurization.py` relative to the workspace `working_dir`.
 
 ## Current Stage Inventory
 1. record_id_definition

@@ -35,8 +35,8 @@ Key fields in featurizer_config.yaml:
 - FEATURE_SELECTION_TREE_RANDOM_STATE
 
 Important file/path anchors:
-- Input data: data/dd_cleaner/sba_loans_user_cleaned.csv
-- Metadata: data/dd_cleaner/sba_loans_metadata_table.csv
+- Input data: `data/dd_cleaner/sba_loans_user_cleaned.csv` relative to the workspace `working_dir`
+- Metadata: `data/dd_cleaner/sba_loans_metadata_table.csv` relative to the workspace `working_dir`
 - User stage logic: featurization_scripts/featurization.py
 
 ## 2.1. Provisional Config Bootstrap

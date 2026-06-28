@@ -8,6 +8,8 @@ This document describes how to wire `featurization_scripts/featurization.py` and
 
 into one survival-ready table with one row per subject.
 
+> Note: This implementation is provided as a survival-specific example, not a one-size-fits-all feature for every featurization pipeline. Users should initialize their agent on the correct documentation and then adapt pipeline stages to the needs of their own use case.
+
 ## 1. Pipeline contract
 
 The package pipeline contract is:
@@ -47,7 +49,7 @@ This form can be forwarded to later featurization stages without the survival pr
 
 ## 3. Recommended config anchors
 
-Add a survival preprocessing stage to `featurizer_config.yaml` or your workspace config:
+Add a survival preprocessing stage to `featurizer_config.yaml` or your workspace config. This sample wiring is intended as a starting point for survival use cases; it should be adapted to the specific dataset and business requirements.
 
 ```yaml
 pipeline:
@@ -216,7 +218,7 @@ def survival_data_preparation(context: dict, stage_cfg: dict) -> pd.DataFrame:
 
 ### 5.1 Raw event log path
 
-1. Load raw event log from `data/dd_cleaner/...`.
+1. Load raw event log from the workspace input path configured in `featurizer_config.yaml`.
 2. Apply any data-quality stage wrappers needed for date parsing or state normalization.
 3. Run `survival_data_preparation`.
 4. Follow with feature-engineering stages on the flattened survival output.

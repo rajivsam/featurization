@@ -8,6 +8,8 @@ It is designed to be dataset-agnostic at the package level:
 - reusable feature logic lives in package modules
 - modeling flow remains leakage-safe (fit on train only, reuse on val/active)
 
+File anchors in `featurizer_config.yaml` are resolved relative to the workspace `working_dir`. The concrete absolute paths will vary by installation and user environment.
+
 SBA-specific file names and stage examples in this repo are reference defaults, not a package constraint.
 
 ## What This Produces
@@ -76,6 +78,15 @@ featurization-cli advise --working-dir /path/to/workspace --model-intent catboos
 
 Contact me if you want to see a demo of the feature advisor workflow.
 
+## Survival Featurization
+
+This package supports survival analysis preprocessing in addition to regular cross-sectional featurization.
+
+- Regular cross-sectional pipelines produce a single engineered dataset row per record and are described in `documents/user_guide.md`.
+- Survival analysis pipelines start from event-log or interval long-form data, convert timelines into one row per subject, and then project features into model-ready form.
+- Survival-specific wiring and config guidance live in `documents/survival_featurization_pipeline.md`.
+- The survival path uses `src/tabular/survival_prep.py` plus a thin stage wrapper in `featurization_scripts/featurization.py`.
+
 ## Feature Selection
 
 Feature selection runs in harmonize_and_project_feature_space on train rows only.
@@ -128,6 +139,21 @@ featurization-cli bootstrap \
 Run the pipeline:
 
 featurization-cli run --working-dir /path/to/workspace
+
+Example: regular cross-sectional run
+
+```bash
+featurization-cli run --working-dir /path/to/workspace
+```
+
+Example: survival analysis run
+
+```bash
+# Ensure your workspace config includes the survival_data_preparation stage
+featurization-cli run --working-dir /path/to/workspace
+```
+
+If you want to explicitly validate survival stage config before running, review `documents/survival_featurization_pipeline.md` and your `featurizer_config.yaml`.
 
 Run package smoke tests:
 
