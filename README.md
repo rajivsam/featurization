@@ -1,181 +1,93 @@
 # KMDS Featurization
 
-This repository provides a configurable, stage-based featurization package for KMDS project datasets.
+KMDS Featurization turns cleaned data into model-ready datasets using a configurable stage pipeline.
 
-It is designed to be dataset-agnostic at the package level:
+It is designed to be flexible:
+- works with standard cross-sectional datasets
+- supports survival analysis workflows when needed
+- keeps feature engineering and train/validation flow leakage-safe
+- resolves file anchors relative to the workspace `working_dir`
 
-- stage orchestration is generic and configuration-driven
-- reusable feature logic lives in package modules
-- modeling flow remains leakage-safe (fit on train only, reuse on val/active)
+## What it produces
 
-File anchors in `featurizer_config.yaml` are resolved relative to the workspace `working_dir`. The concrete absolute paths will vary by installation and user environment.
+The main outputs are:
+- `featurized_data.csv`: a consolidated engineered dataset
+- `model_ready_numeric_data.csv`: a numeric model-ready export for modeling
 
-SBA-specific file names and stage examples in this repo are reference defaults, not a package constraint.
+This tool also creates diagnostic artifacts such as:
+- `feature_selection_knee_curve.png`
 
-## What This Produces
+## How it works
 
-The pipeline writes two CSV outputs:
+The pipeline is built from stage wrappers in `featurization_scripts/featurization.py`. Each stage returns a DataFrame and the runner concatenates stage outputs by index.
 
-- featurized_data.csv: consolidated engineered dataset
-- model_ready_numeric_data.csv: numeric model-ready export from the final stage output
+Key ideas:
+- every row can be assigned a stable `record_id`
+- stages are configured in `featurizer_config.yaml`
+- stage output is merged horizontally to build the final dataset
+- only the final stage may intentionally add new records back into the pipeline
 
-Additional diagnostic artifact:
+## Survival vs. regular featurization
 
-- feature_selection_knee_curve.png: ranked feature-importance knee plot in the featurization output directory
+This repository supports two kinds of workflows:
 
-Model-ready output behavior:
+- regular cross-sectional featurization: one row per input record
+- survival featurization: one row per subject after flattening event or interval history
 
-- numeric and bool columns only
-- train-fitted feature-selected schema
-- aligned schema across modeled and active partitions
-- persisted with index=False to avoid index artifact columns
+If you are doing survival analysis, read:
+- `documents/survival_featurization_pipeline.md`
 
-## Core Runtime Contract
+For regular workflows, see:
+- `documents/user_guide_cs_featurization.md`
 
-- Anchor index: record_id
-- Stage contract: method(context, stage_cfg) -> DataFrame
-- Waterfall behavior: each stage can reduce the survivor universe by index
-- Horizontal assembly: stage outputs are concatenated by index
-- Controlled expansion: only stages with allow_new_indices may intentionally re-introduce rows
-
-## Package Architecture
-
-Core orchestration:
-
-- src/featurization/core/sequential_pipeline_runner.py
-- src/featurization/core/path_coordinator.py
-- src/featurization/core/featurization_init.py
-
-Reusable tabular modules:
-
-- src/tabular/modeling_filter.py
-- src/tabular/train_val_split.py
-- src/tabular/target_encoding.py
-- src/tabular/feature_space.py
-- src/tabular/low_count_cat_var_encoding.py
-- src/tabular/hierarchical_low_count_var_encoding.py
-- src/tabular/merge_ops.py
-
-Design split:
-
-- Row-selection components decide participation and partitioning
-- Column-selection components decide engineering, encoding, and projection
-- Assembly components perform index-aligned merges
-
-## Feature Advisor Service
-
-This repository includes a value-added feature advisor service that generates featurization recommendations from your metadata table, input dataset, and downstream modeling choice.
-
-- Uses `metadata` and the input data file from `PathCoordinator`
-- Accepts explicit model intent such as `catboost`, `xgboost`, `lightgbm`, or classic models
-- Recommends native categorical handling for GBDT models when appropriate
-- Recommends explicit low-count, hierarchical, and target encoding strategies for non-GBDT targets
-- Saves recommendations as a CSV and Markdown artifact for review
-
-CLI usage:
-
-featurization-cli advise --working-dir /path/to/workspace --model-intent catboost
-
-Contact me if you want to see a demo of the feature advisor workflow.
-
-## Survival Featurization
-
-This package supports survival analysis preprocessing in addition to regular cross-sectional featurization.
-
-- Regular cross-sectional pipelines produce a single engineered dataset row per record and are described in `documents/user_guide.md`.
-- Survival analysis pipelines start from event-log or interval long-form data, convert timelines into one row per subject, and then project features into model-ready form.
-- Survival-specific wiring and config guidance live in `documents/survival_featurization_pipeline.md`.
-- The survival path uses `src/tabular/survival_prep.py` plus a thin stage wrapper in `featurization_scripts/featurization.py`.
-
-## Feature Selection
-
-Feature selection runs in harmonize_and_project_feature_space on train rows only.
-
-Supported selector modes:
-
-- threshold
-- tree_ensemble
-
-Supported tree models:
-
-- gbm
-- random_forest
-- xgboost (optional dependency)
-
-All selector behavior is configuration-driven through featurizer_config.yaml.
-
-Key kneedle controls:
-
-- FEATURE_SELECTION_TOP_K_MODE
-- FEATURE_SELECTION_TOP_K_MIN_RATIO
-- FEATURE_SELECTION_MIN_FEATURE_COUNT
-- FEATURE_SELECTION_TARGET_FEATURE_COUNT
-- FEATURE_SELECTION_REQUIRE_KNEEDLE
-
-## CLI
+## Quick start
 
 Initialize a workspace config:
 
+```bash
 featurization-cli init \
   --working-dir /path/to/workspace \
   --metadata-file your_metadata.csv \
   --data-file your_cleaned_dataset.csv
+```
 
 Create a provisional starter config:
 
+```bash
 featurization-cli bootstrap \
   --working-dir /path/to/workspace \
   --metadata-file your_metadata.csv \
   --data-file your_cleaned_dataset.csv
-
-Use `--overwrite` to replace an existing provisional config file if needed:
-
-featurization-cli bootstrap \
-  --working-dir /path/to/workspace \
-  --metadata-file your_metadata.csv \
-  --data-file your_cleaned_dataset.csv \
-  --overwrite
+```
 
 Run the pipeline:
 
-featurization-cli run --working-dir /path/to/workspace
-
-Example: regular cross-sectional run
-
 ```bash
 featurization-cli run --working-dir /path/to/workspace
 ```
 
-Example: survival analysis run
+If you want to validate survival config first, check:
+- `documents/survival_featurization_pipeline.md`
+
+## Testing
+
+Run the core tests with:
 
 ```bash
-# Ensure your workspace config includes the survival_data_preparation stage
-featurization-cli run --working-dir /path/to/workspace
+pytest -q tests/test_sba_pipeline.py tests/test_survival_prep.py tests/test_survival_featurizer_pipeline.py
 ```
 
-If you want to explicitly validate survival stage config before running, review `documents/survival_featurization_pipeline.md` and your `featurizer_config.yaml`.
+## Notes for users
 
-Run package smoke tests:
+- `featurizer_config.yaml` file anchors are workspace-relative.
+- absolute paths depend on your local `working_dir` setting.
+- stage wrappers should stay thin and use shared `src/tabular/` logic.
+- survival support is a use-case extension, not a universal default.
 
-pytest -q tests/test_sba_pipeline.py
+## Recommended documents
 
-## How To Extend Safely
-
-1. Put reusable transformations in src/tabular first.
-2. Keep workspace stage wrappers thin and explicit.
-3. Add new tunables in all three locations:
-   - featurizer_config.yaml
-   - src/featurization/core/path_coordinator.py
-   - src/featurization/core/featurization_init.py
-4. Preserve leakage-safe modeling flow:
-   - fit artifacts on train only
-   - transform val/active with train-fitted artifacts
-5. Validate with package tests and workspace integration runs.
-
-## Recommended Read Order
-
-1. documents/sba_pipeline_featurization.md
-2. documents/config_blueprint.md
-3. documents/path_coordinator_function.md
-4. src/featurization/core/sequential_pipeline_runner.py
-5. src/tabular/feature_space.py
+- `documents/sba_pipeline_featurization.md`
+- `documents/config_blueprint.md`
+- `documents/path_coordinator_function.md`
+- `documents/user_guide_cs_featurization.md`
+- `documents/survival_featurization_pipeline.md`
