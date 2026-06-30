@@ -49,7 +49,53 @@ Main outputs:
 
 The pipeline also creates diagnostic artifacts and any configured feature advisor artifacts.
 
-## 🧱 How it works
+## � Feature advisor: model-aware featurization guidance
+The feature advisor is a value-added service that reads workspace metadata and the input dataset, then recommends how to treat categorical, numeric, hierarchical, and text attributes for your downstream model intent.
+
+### Why use it
+- recommends native categorical handling for `catboost`, `xgboost`, and `lightgbm`
+- recommends low-count categorical or hierarchical encoding for long-tail categories
+- recommends text featurization strategies when metadata indicates free-text fields
+- writes both CSV and Markdown recommendation artifacts for review
+
+### CLI usage
+```bash
+featurization-cli advise \
+  --working-dir /path/to/workspace \
+  --metadata-file data/dd_cleaner/sba_loans_metadata_table.csv \
+  --model-intent catboost \
+  --ollama-model llama2
+```
+
+Optional alternatives:
+- use `--use-mock` for local validation without an LLM
+- use `--llm-response-file /path/to/response.json` to replay a saved LLM output
+
+### Python usage
+```python
+from featurization.notebook_utils import build_notebook_resolver
+from featurization.feature_advisor_util import FeatureAdvisorUtil, FeatureAdvisorPromptConfig
+import pandas as pd
+
+resolver = build_notebook_resolver('/path/to/notebook')
+prompt_config = FeatureAdvisorPromptConfig.load_from_package()
+advisor = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
+
+metadata = pd.read_csv(resolver.metadata_path)
+recommendations = advisor.recommend(
+    metadata=metadata,
+    model_intent='catboost',
+    use_rules=True,
+)
+print(recommendations.head())
+```
+
+### Output files
+By default the advisor writes recommendations to:
+- `data/<featurization_output_dir>/feature_advisor/feature_advisor_recommendations.csv`
+- `data/<featurization_output_dir>/feature_advisor/feature_advisor_recommendations.md`
+
+## �🧱 How it works
 The pipeline is built from stage wrappers in `featurization_scripts/featurization.py`. Each stage:
 - receives the current context and stage config
 - returns a DataFrame
