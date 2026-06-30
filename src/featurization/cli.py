@@ -12,6 +12,21 @@ from featurization.core.featurization_init import (
 from featurization.core.path_coordinator import PathCoordinator
 from featurization.feature_advisor_util import FeatureAdvisorPromptConfig, FeatureAdvisorUtil
 
+CLI_COMMAND_NAMES = [
+    "init",
+    "bootstrap",
+    "run",
+    "advise",
+    "check",
+    "add-stage",
+]
+
+
+def get_cli_command_names():
+    """Return the supported featurization-cli commands."""
+    return list(CLI_COMMAND_NAMES)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Featurization Service Shell - kmds-data-helper Ecosystem"

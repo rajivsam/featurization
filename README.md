@@ -86,8 +86,22 @@ pytest -q tests/test_sba_pipeline.py tests/test_survival_prep.py tests/test_surv
 
 ## Recommended documents
 
+- `documents/client_onboarding.md`
 - `documents/sba_pipeline_featurization.md`
 - `documents/config_blueprint.md`
 - `documents/path_coordinator_function.md`
 - `documents/user_guide_cs_featurization.md`
 - `documents/survival_featurization_pipeline.md`
+
+## Documentation guidance
+
+The package no longer ships embedded documents in the installed distribution. Use the repository's top-level `documents/` folder for onboarding and implementation guidance.
+
+For package discovery, clients should use the package metadata API:
+
+```python
+from featurization import get_package_info
+
+info = get_package_info()
+print(info)
+```

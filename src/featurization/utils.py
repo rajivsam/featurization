@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from typing import List
+from typing import Any, Dict, List
 from featurization.core.path_coordinator import PathCoordinator
 
 def load_kmds_metadata(metadata_path: str) -> pd.DataFrame:
@@ -38,12 +38,26 @@ def get_entity_list(resolver: PathCoordinator) -> List[str]:
         print(f"❌ Error: get_entity_list could not find or load file at: {metadata_path}")
         return []
 
-    # Resolve entity column via substring matching to handle potential CSV artifacts
     entity_col = next((c for c in df.columns if "provisional_entity_assignment" in c), None)
+    if entity_col is None:
+        return []
 
-    if entity_col and entity_col in df.columns:
-        # Extract unique set, drop empty values, and return as a sorted list
-        entities = df[entity_col].dropna().unique().tolist()
-        return sorted([str(e).strip() for e in entities if str(e).strip()])
+    entities = df[entity_col].dropna().astype(str).str.strip()
+    return sorted([e for e in entities.unique() if e])
 
-    return []
+
+def get_package_info() -> Dict[str, Any]:
+    """Return package discovery metadata for clients."""
+    from featurization import __version__ as package_version
+    from featurization.cli import get_cli_command_names
+
+    return {
+        "package_name": "kmds-featurization",
+        "version": package_version,
+        "entry_point": "featurization-cli",
+        "cli_commands": get_cli_command_names(),
+        "documentation_note": (
+            "This package no longer ships internal docs in the installed package. "
+            "Use the repository top-level documents/ folder for onboarding and implementation guidance."
+        ),
+    }
