@@ -52,9 +52,9 @@ def main():
     )
     init_parser.add_argument(
         "--structural-type",
-        choices=["cross-sectional", "longitudinal", "panel"],
+        choices=["cross-sectional", "longitudinal", "panel", "temporal", "wide and short"],
         default="cross-sectional",
-        help="The structural type of the dataset (cross-sectional, longitudinal, or panel)."
+        help="The structural type of the dataset (cross-sectional, longitudinal, panel, temporal, or wide and short)."
     )
 
     # --- Add-Stage Command ---
@@ -95,7 +95,7 @@ def main():
     )
     bootstrap_parser.add_argument(
         "--structural-type",
-        choices=["cross-sectional", "longitudinal", "panel"],
+        choices=["cross-sectional", "longitudinal", "panel", "temporal", "wide and short"],
         default="cross-sectional",
         help="Structural type placeholder for the starter config."
     )

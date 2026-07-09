@@ -127,6 +127,12 @@ class FeatureAdvisorUtil:
             return ""
         return str(value).lower().strip()
 
+    def _normalized_dataset_type(self) -> str:
+        return self.resolver.structural_type.strip().lower()
+
+    def _is_wide_and_short_dataset(self) -> bool:
+        return self._normalized_dataset_type() in {"wide and short", "wide-and-short", "wide_and_short"}
+
     def _is_hierarchical_field(self, attribute: str) -> bool:
         attribute = attribute.lower()
         return "naics" in attribute
@@ -172,43 +178,63 @@ class FeatureAdvisorUtil:
             logical_type = logical_type or inferred_logical
             physical_type = physical_type or inferred_physical
 
+        longitudinal_note = ""
+        wide_and_short_note = ""
+        if self.resolver.structural_type.strip().lower() == "longitudinal":
+            longitudinal_note = (
+                "This dataset is longitudinal and should be transformed into a survival-ready structural summary wide form "
+                "before applying cross-sectional feature encoding recommendations."
+            )
+
+        if self._is_wide_and_short_dataset():
+            wide_and_short_note = (
+                "This dataset is wide and short. Consider feature selection methods to shrink the attribute set "
+                "to the variables most meaningful to the problem."
+            )
+
+        extra_note = ""
+        if longitudinal_note:
+            extra_note += f" {longitudinal_note}"
+        if wide_and_short_note:
+            extra_note += f" {wide_and_short_note}"
+
         if self._is_text_field(attribute_lower, logical_type, physical_type):
             if any(keyword in attribute_lower for keyword in ["desc", "description", "comment", "review", "reason", "story"]):
                 return (
                     "SentenceTransformer",
-                    "Long-form or descriptive text field. Use a stateless SentenceTransformer embedder to capture semantic context and avoid leaking validation data through train-only vocabulary fitting.",
+                    "Long-form or descriptive text field. Use a stateless SentenceTransformer embedder to capture semantic context and avoid leaking validation data through train-only vocabulary fitting." + extra_note,
                 )
             return (
                 "TF-IDF + TruncatedSVD",
-                "Short text or keyword-style field. Fit sparse TF-IDF on train only and compress with TruncatedSVD to preserve train/validation safety while limiting sparse dimensionality.",
+                "Short text or keyword-style field. Fit sparse TF-IDF on train only and compress with TruncatedSVD to preserve train/validation safety while limiting sparse dimensionality." + extra_note,
             )
 
         if self._is_hierarchical_field(attribute_lower):
             return (
                 "hierarchical_low_count_var_encoding",
-                "Hierarchical or geographic long-tail categorical code. Use right-side masking to preserve parent-level industry/geo structure while meeting minimum support on train data.",
+                "Hierarchical or geographic long-tail categorical code. Use right-side masking to preserve parent-level industry/geo structure while meeting minimum support on train data." + extra_note,
             )
 
         if self._is_numeric_field(logical_type, physical_type):
             return (
                 "No encoding required",
-                "Numeric feature should be passed through the numeric pipeline without additional categorical encoding, preserving train/validation artifact separation.",
+                "Numeric feature should be passed through the numeric pipeline without additional categorical encoding, preserving train/validation artifact separation." + extra_note,
             )
 
         if logical_type in {"categorical", "category", "enum"} or physical_type in {"string", "varchar", "char", "object"}:
             if model_intent_normalized in native_gbm_intents:
                 return (
                     f"Native {model_intent_normalized.title()} Handling",
-                    f"Use native {model_intent_normalized.title()} categorical handling for this field. This avoids manual encoding overhead and preserves train/validation safety through the model's built-in leakage-aware categorical algorithm.",
+                    f"Use native {model_intent_normalized.title()} categorical handling for this field. This avoids manual encoding overhead and preserves train/validation safety through the model's built-in leakage-aware categorical algorithm." + extra_note,
                 )
             return (
                 "low_count_cat_var_encoding + target_encoding",
-                "Use low-count categorical grouping on train data followed by target encoding to produce numeric model-ready features while avoiding unseen categories during validation/active scoring.",
+                "Use low-count categorical grouping on train data followed by target encoding to produce numeric model-ready features while avoiding unseen categories during validation/active scoring." + extra_note,
             )
 
         return (
             "Review metadata",
-            "The field does not match a recognized categorical, numeric, or text featurization pattern. Validate whether it should be treated as a specialized text or hierarchical categorical field.",
+            "The field does not match a recognized categorical, numeric, or text featurization pattern. Validate whether it should be treated as a specialized text or hierarchical categorical field." + extra_note,
         )
 
     def recommend_from_rules(
@@ -248,10 +274,24 @@ class FeatureAdvisorUtil:
         metadata_json = normalized_metadata.to_dict(orient="records")
         metadata_serialized = json.dumps(metadata_json, indent=2, default=str)
 
+        dataset_type = self.resolver.structural_type.strip().lower()
+        dataset_context = f"Dataset structural type: {dataset_type}\n"
+        if dataset_type == "longitudinal":
+            dataset_context += (
+                "The input data is longitudinal. Recommend transforming raw event-log or intervallic long-form input "
+                "into a structural summary wide form before applying the cross-sectional feature engineering recommendations.\n"
+            )
+        elif dataset_type in {"wide and short", "wide-and-short", "wide_and_short"}:
+            dataset_context += (
+                "The input data is wide and short. Recommend prioritizing feature selection methods to shrink the attribute set "
+                "to the variables most meaningful to the problem before or during feature engineering.\n"
+            )
+
         prompt = (
             f"{system_prompt}\n\n"
             f"{user_prompt}\n\n"
             f"Model intent: {model_intent}\n\n"
+            f"{dataset_context}\n"
             f"Metadata records:\n{metadata_serialized}\n\n"
             f"{format_instructions}"
         )

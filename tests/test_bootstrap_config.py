@@ -144,3 +144,31 @@ def test_bootstrap_command_overwrites_existing_config(monkeypatch, capsys, tmp_p
 
     assert config["metadata_file"] == new_metadata
     assert config["featurization_input_data"] == data_file
+
+
+def test_bootstrap_normalizes_temporal_structural_type(tmp_path):
+    working_dir = tmp_path / "workspace_temporal"
+    config_path = bootstrap_provisional_config(
+        working_dir=str(working_dir),
+        structural_type="event log",
+        overwrite=True,
+    )
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    assert config["structural_type"] == "temporal"
+
+
+def test_bootstrap_normalizes_wide_and_short_structural_type(tmp_path):
+    working_dir = tmp_path / "workspace_wide_short"
+    config_path = bootstrap_provisional_config(
+        working_dir=str(working_dir),
+        structural_type="wide-and-short",
+        overwrite=True,
+    )
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    assert config["structural_type"] == "wide and short"

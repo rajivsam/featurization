@@ -1,6 +1,9 @@
 import os
 import yaml
 
+from featurization.core.path_coordinator import normalize_structural_type
+
+
 def initialize_config(working_dir: str, metadata_file: str, data_file: str, structural_type: str = "cross-sectional", config_name: str = "featurizer_config.yaml"):
     """
     Bootstraps a new featurization workspace by persisting key project anchors 
@@ -8,6 +11,7 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
     """
     abs_working_dir = os.path.abspath(working_dir)
     config_path = os.path.join(abs_working_dir, config_name)
+    structural_type = normalize_structural_type(structural_type)
 
     # 1. Load existing config if available (check target path or current directory)
     existing_config = {}
@@ -126,6 +130,7 @@ def bootstrap_provisional_config(
     abs_working_dir = os.path.abspath(working_dir)
     os.makedirs(abs_working_dir, exist_ok=True)
     config_path = os.path.join(abs_working_dir, config_name)
+    structural_type = normalize_structural_type(structural_type)
 
     if os.path.exists(config_path) and not overwrite:
         raise FileExistsError(

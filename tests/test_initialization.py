@@ -76,5 +76,43 @@ def test_workspace_init():
     
     print("\n✅ Initialization Test Passed: Config persisted, directories created, and properties resolved correctly.")
 
+def test_initialize_config_normalizes_temporal_structural_type(tmp_path):
+    working_dir = tmp_path / "workspace_temporal"
+    metadata_file = "metadata.csv"
+    data_file = "data.csv"
+
+    initialize_config(
+        working_dir=str(working_dir),
+        metadata_file=metadata_file,
+        data_file=data_file,
+        structural_type="event-log",
+    )
+
+    config_path = os.path.join(str(working_dir), "featurizer_config.yaml")
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    assert config["structural_type"] == "temporal"
+
+
+def test_initialize_config_normalizes_wide_and_short_structural_type(tmp_path):
+    working_dir = tmp_path / "workspace_wide_short"
+    metadata_file = "metadata.csv"
+    data_file = "data.csv"
+
+    initialize_config(
+        working_dir=str(working_dir),
+        metadata_file=metadata_file,
+        data_file=data_file,
+        structural_type="wide-and-short",
+    )
+
+    config_path = os.path.join(str(working_dir), "featurizer_config.yaml")
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    assert config["structural_type"] == "wide and short"
+
+
 if __name__ == "__main__":
     test_workspace_init()

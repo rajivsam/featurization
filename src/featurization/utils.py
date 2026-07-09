@@ -60,4 +60,18 @@ def get_package_info() -> Dict[str, Any]:
             "This package no longer ships internal docs in the installed package. "
             "Use the repository top-level documents/ folder for onboarding and implementation guidance."
         ),
+        "usage": {
+            "overview": (
+                "Use this package by configuring a workspace in featurizer_config.yaml, "
+                "then running the CLI from that workspace. For cross-sectional workflows, "
+                "follow the cross-sectional guide; for event-log survival workflows, "
+                "follow the survival guide."
+            ),
+            "cross_sectional_guide": "documents/user_guide_cs_featurization.md",
+            "survival_guide": "documents/survival_featurization_pipeline.md",
+            "guidance": (
+                "Feature selection is recommended for wide and short datasets. "
+                "This package does not provide a dedicated featurization pipeline for wide and short datasets."
+            ),
+        },
     }

@@ -1,6 +1,49 @@
 import os
 from typing import Dict, Any
 
+VALID_STRUCTURAL_TYPES = {
+    "cross-sectional": {
+        "cross-sectional",
+        "cross sectional",
+        "cross_sectional",
+        "crosssectional",
+    },
+    "longitudinal": {"longitudinal"},
+    "panel": {"panel"},
+    "temporal": {
+        "temporal",
+        "time-series",
+        "time_series",
+        "time series",
+        "event-log",
+        "event log",
+        "intervallic long form",
+        "intervallic_long_form",
+        "intervallic-long-form",
+    },
+    "wide and short": {
+        "wide and short",
+        "wide-and-short",
+        "wide_and_short",
+        "wideandshort",
+    },
+}
+
+
+def normalize_structural_type(value: str) -> str:
+    """Normalize structural type values to the canonical config form."""
+    if value is None:
+        return "cross-sectional"
+    normalized = str(value).strip().lower()
+    for canonical, aliases in VALID_STRUCTURAL_TYPES.items():
+        if normalized in aliases:
+            return canonical
+    allowed_values = ", ".join(sorted(VALID_STRUCTURAL_TYPES.keys()))
+    raise ValueError(
+        f"Unsupported structural_type '{value}'. Supported types: {allowed_values}."
+    )
+
+
 class PathCoordinator:
     """
     Encapsulates structural pipeline layout constants.
@@ -23,8 +66,9 @@ class PathCoordinator:
 
     @property
     def structural_type(self) -> str:
-        """Returns the dataset structural type (cross-sectional, longitudinal, or panel)."""
-        return self.config.get("structural_type", "cross-sectional")
+        """Returns the dataset structural type (cross-sectional, longitudinal, panel, temporal, or wide and short)."""
+        structural_type = str(self.config.get("structural_type", "cross-sectional"))
+        return normalize_structural_type(structural_type)
 
     @property
     def validation_size(self) -> float:

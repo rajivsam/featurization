@@ -19,6 +19,11 @@ def test_get_package_info():
     assert isinstance(info["cli_commands"], list)
     assert "run" in info["cli_commands"]
     assert "documentation_note" in info
+    assert "usage" in info
+    assert isinstance(info["usage"], dict)
+    assert info["usage"]["cross_sectional_guide"] == "documents/user_guide_cs_featurization.md"
+    assert info["usage"]["survival_guide"] == "documents/survival_featurization_pipeline.md"
+    assert "wide and short" in info["usage"]["guidance"]
 
 
 def test_client_onboarding_metadata():

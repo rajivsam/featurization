@@ -1,3 +1,7 @@
+import importlib.util
+import os
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -84,6 +88,44 @@ def test_censoring_boundary_conditions_use_fixed_cutoff_for_active_records():
     assert result.loc[result["customer_id"] == "SUB901", "survival_event"].iloc[0] == 1
     assert result.loc[result["customer_id"] == "SUB902", "survival_duration"].iloc[0] == pytest.approx(20.0)
     assert result.loc[result["customer_id"] == "SUB902", "survival_event"].iloc[0] == 0
+
+
+def test_survival_data_preparation_stage_wrapper_executes_with_expected_output():
+    df = pd.DataFrame([
+        {"incident_id": "INC101", "timestamp": "2026-01-01 09:00:00", "state": "New", "priority": "High"},
+        {"incident_id": "INC101", "timestamp": "2026-01-05 09:00:00", "state": "Closed", "priority": "Low"},
+    ])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    stage_cfg = {
+        "subject_id_col": "incident_id",
+        "timestamp_col": "timestamp",
+        "state_col": "state",
+        "terminal_states": ["Closed"],
+        "censored_states": [],
+        "observation_window": {
+            "start_mode": "subject_first",
+            "fixed_start_date": None,
+            "end_mode": "dataset_max",
+            "fixed_end_date": None,
+        },
+        "static_features": ["priority"],
+        "dynamic_aggregation_rules": {"priority": "first"},
+        "duration_unit": "days",
+    }
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "featurization_scripts" / "featurization.py"
+    spec = importlib.util.spec_from_file_location("survival_stage_logic", str(script_path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    result = module.survival_data_preparation({"data": df}, stage_cfg)
+
+    assert isinstance(result, pd.DataFrame)
+    assert set(result.columns) >= {"incident_id", "survival_duration", "survival_event", "priority"}
+    assert result.loc[result["incident_id"] == "INC101", "survival_duration"].iloc[0] == pytest.approx(4.0)
+    assert result.loc[result["incident_id"] == "INC101", "survival_event"].iloc[0] == 1
 
 
 def test_invalid_dataset_without_subject_or_timestamp_columns_is_rejected():

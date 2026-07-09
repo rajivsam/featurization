@@ -172,6 +172,68 @@ def test_feature_advisor_recommend_from_rules_detects_native_gbm_intent(tmp_path
     assert recommendations.iloc[0]["recommended_method"] == "Native Xgboost Handling"
 
 
+def test_feature_advisor_recommend_from_rules_appends_longitudinal_guidance(tmp_path):
+    resolver = DummyResolver(str(tmp_path))
+    resolver.config["structural_type"] = "longitudinal"
+    prompt_config = FeatureAdvisorPromptConfig.load_from_package()
+    util = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
+
+    metadata = pd.DataFrame(
+        [{"attribute": "borrower_city", "logical_type": "categorical", "physical_type": "string"}]
+    )
+
+    recommendations = util.recommend(metadata=metadata, model_intent="linear_model", use_rules=True)
+
+    assert "longitudinal" in recommendations.iloc[0]["rationale"].lower()
+    assert "structural summary wide form" in recommendations.iloc[0]["rationale"].lower()
+
+
+def test_feature_advisor_recommend_from_rules_appends_wide_and_short_guidance(tmp_path):
+    resolver = DummyResolver(str(tmp_path))
+    resolver.config["structural_type"] = "wide and short"
+    prompt_config = FeatureAdvisorPromptConfig.load_from_package()
+    util = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
+
+    metadata = pd.DataFrame(
+        [{"attribute": "borrower_city", "logical_type": "categorical", "physical_type": "string"}]
+    )
+
+    recommendations = util.recommend(metadata=metadata, model_intent="linear_model", use_rules=True)
+
+    assert "wide and short" in recommendations.iloc[0]["rationale"].lower()
+    assert "feature selection" in recommendations.iloc[0]["rationale"].lower()
+
+
+def test_feature_advisor_build_prompt_includes_longitudinal_context(tmp_path):
+    resolver = DummyResolver(str(tmp_path))
+    resolver.config["structural_type"] = "longitudinal"
+    prompt_config = FeatureAdvisorPromptConfig.load_from_package()
+    util = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
+
+    metadata = pd.DataFrame(
+        [{"attribute": "city", "logical_type": "categorical"}]
+    )
+    prompt = util.build_prompt(metadata=metadata, model_intent="catboost")
+
+    assert "dataset structural type: longitudinal" in prompt.lower()
+    assert "structural summary wide form" in prompt.lower()
+
+
+def test_feature_advisor_build_prompt_includes_wide_and_short_context(tmp_path):
+    resolver = DummyResolver(str(tmp_path))
+    resolver.config["structural_type"] = "wide and short"
+    prompt_config = FeatureAdvisorPromptConfig.load_from_package()
+    util = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
+
+    metadata = pd.DataFrame(
+        [{"attribute": "city", "logical_type": "categorical"}]
+    )
+    prompt = util.build_prompt(metadata=metadata, model_intent="catboost")
+
+    assert "dataset structural type: wide and short" in prompt.lower()
+    assert "feature selection methods" in prompt.lower()
+
+
 def test_feature_advisor_parse_advice_accepts_dict_response(tmp_path):
     resolver = DummyResolver(str(tmp_path))
     prompt_config = FeatureAdvisorPromptConfig.load_from_package()
