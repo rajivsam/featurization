@@ -65,6 +65,25 @@ def get_featurization_artifact_status(resolver: PathCoordinator) -> Dict[str, Di
     }
 
 
+def get_dd_cleaner_artifact_paths(resolver: PathCoordinator) -> Dict[str, str]:
+    """Returns absolute paths for dd-parser-cleaner artifacts in the workspace."""
+    return {
+        "metadata_path": resolver.metadata_path,
+        "featurization_input_path": resolver.featurization_input_path,
+    }
+
+
+def get_featurization_pipeline(resolver: PathCoordinator):
+    """Returns the configured featurization pipeline from the workspace config."""
+    return resolver.config.get("pipeline", [])
+
+
+def get_notebook_workspace_artifact_paths(notebook_dir: str, config_name: str = "featurizer_config.yaml") -> Dict[str, str]:
+    """Builds a notebook workspace resolver and returns dd-parser-cleaner artifact paths."""
+    resolver = build_notebook_resolver(notebook_dir, config_name=config_name)
+    return get_dd_cleaner_artifact_paths(resolver)
+
+
 def load_featurized_dataset(resolver: PathCoordinator, **read_csv_kwargs) -> pd.DataFrame:
     """Loads the consolidated featurized dataset CSV from the featurization output directory."""
     path = resolver.featurized_dataset_path
@@ -78,4 +97,20 @@ def load_model_ready_dataset(resolver: PathCoordinator, **read_csv_kwargs) -> pd
     path = resolver.model_ready_dataset_path
     if not os.path.isfile(path):
         raise FileNotFoundError(f"Model-ready dataset not found at: {path}")
+    return pd.read_csv(path, **read_csv_kwargs)
+
+
+def load_data_dictionary_metadata(resolver: PathCoordinator, **read_csv_kwargs) -> pd.DataFrame:
+    """Loads dd-parser-cleaner metadata from the configured workspace path."""
+    path = resolver.metadata_path
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Data dictionary metadata not found at: {path}")
+    return pd.read_csv(path, **read_csv_kwargs)
+
+
+def load_featurization_input_dataset(resolver: PathCoordinator, **read_csv_kwargs) -> pd.DataFrame:
+    """Loads the cleaned input dataset from the configured dd-parser-cleaner output path."""
+    path = resolver.featurization_input_path
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Featurization input dataset not found at: {path}")
     return pd.read_csv(path, **read_csv_kwargs)
