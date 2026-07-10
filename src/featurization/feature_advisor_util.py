@@ -133,6 +133,21 @@ class FeatureAdvisorUtil:
     def _is_wide_and_short_dataset(self) -> bool:
         return self._normalized_dataset_type() in {"wide and short", "wide-and-short", "wide_and_short"}
 
+    def _wide_and_short_recommendation(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "attribute": "dataset",
+                    "recommended_method": "Feature selection recommended",
+                    "rationale": (
+                        "This dataset is wide and short. Prioritize feature selection over "
+                        "per-attribute featurization and do not generate attribute-level "
+                        "encoding recommendations."
+                    ),
+                }
+            ]
+        )
+
     def _is_hierarchical_field(self, attribute: str) -> bool:
         attribute = attribute.lower()
         return "naics" in attribute
@@ -243,6 +258,9 @@ class FeatureAdvisorUtil:
         model_intent: str = "gbm",
         input_data: pd.DataFrame | None = None,
     ) -> pd.DataFrame:
+        if self._is_wide_and_short_dataset():
+            return self._wide_and_short_recommendation()
+
         normalized_metadata = self._normalize_metadata_columns(metadata)
         records = normalized_metadata.to_dict(orient="records")
         recommendations = []
@@ -284,7 +302,8 @@ class FeatureAdvisorUtil:
         elif dataset_type in {"wide and short", "wide-and-short", "wide_and_short"}:
             dataset_context += (
                 "The input data is wide and short. Recommend prioritizing feature selection methods to shrink the attribute set "
-                "to the variables most meaningful to the problem before or during feature engineering.\n"
+                "to the variables most meaningful to the problem before or during feature engineering. "
+                "Do not perform attribute-level featurization recommendations for wide and short datasets.\n"
             )
 
         prompt = (
@@ -414,7 +433,9 @@ class FeatureAdvisorUtil:
         llm_response_fn: Optional[Callable[[str], str]] = None,
         use_rules: bool = False,
     ) -> pd.DataFrame:
-        if use_rules:
+        if self._is_wide_and_short_dataset():
+            recommendations = self._wide_and_short_recommendation()
+        elif use_rules:
             if input_data is None:
                 input_data = self._load_input_data()
             recommendations = self.recommend_from_rules(

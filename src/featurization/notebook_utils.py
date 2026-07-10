@@ -44,13 +44,23 @@ def build_notebook_resolver(notebook_dir: str, config_name: str = "featurizer_co
     return PathCoordinator(working_dir=working_dir, config=config)
 
 
+def _should_show_knee_curve_artifact(resolver: PathCoordinator) -> bool:
+    """Returns True when the workspace dataset should expose a knee-curve artifact."""
+    return resolver.structural_type == "cross-sectional"
+
+
 def get_featurization_artifact_paths(resolver: PathCoordinator) -> Dict[str, str]:
     """Returns absolute paths for the main featurization output artifacts."""
-    return {
+    paths = {
         "featurized_dataset_path": resolver.featurized_dataset_path,
         "model_ready_dataset_path": resolver.model_ready_dataset_path,
-        "feature_selection_knee_curve_path": resolver.feature_selection_knee_curve_path,
     }
+    paths["feature_selection_knee_curve_path"] = (
+        resolver.feature_selection_knee_curve_path
+        if _should_show_knee_curve_artifact(resolver)
+        else None
+    )
+    return paths
 
 
 def get_featurization_artifact_status(resolver: PathCoordinator) -> Dict[str, Dict[str, object]]:
@@ -59,7 +69,7 @@ def get_featurization_artifact_status(resolver: PathCoordinator) -> Dict[str, Di
     return {
         name: {
             "path": path,
-            "exists": os.path.isfile(path),
+            "exists": os.path.isfile(path) if path else False,
         }
         for name, path in artifact_paths.items()
     }

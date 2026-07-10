@@ -195,13 +195,39 @@ def test_feature_advisor_recommend_from_rules_appends_wide_and_short_guidance(tm
     util = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
 
     metadata = pd.DataFrame(
-        [{"attribute": "borrower_city", "logical_type": "categorical", "physical_type": "string"}]
+        [
+            {"attribute": "borrower_city", "logical_type": "categorical", "physical_type": "string"},
+            {"attribute": "loan_amount", "logical_type": "numeric", "physical_type": "float"},
+        ]
     )
 
     recommendations = util.recommend(metadata=metadata, model_intent="linear_model", use_rules=True)
 
+    assert len(recommendations) == 1
+    assert recommendations.iloc[0]["attribute"] == "dataset"
+    assert recommendations.iloc[0]["recommended_method"] == "Feature selection recommended"
     assert "wide and short" in recommendations.iloc[0]["rationale"].lower()
     assert "feature selection" in recommendations.iloc[0]["rationale"].lower()
+
+
+def test_feature_advisor_recommend_short_circuits_for_wide_and_short_without_llm(tmp_path):
+    resolver = DummyResolver(str(tmp_path))
+    resolver.config["structural_type"] = "wide and short"
+    prompt_config = FeatureAdvisorPromptConfig.load_from_package()
+    util = FeatureAdvisorUtil(resolver=resolver, prompt_config=prompt_config)
+
+    metadata = pd.DataFrame(
+        [
+            {"attribute": "borrower_city", "logical_type": "categorical", "physical_type": "string"},
+            {"attribute": "loan_amount", "logical_type": "numeric", "physical_type": "float"},
+        ]
+    )
+
+    recommendations = util.recommend(metadata=metadata, model_intent="xgboost", use_rules=False)
+
+    assert len(recommendations) == 1
+    assert recommendations.iloc[0]["recommended_method"] == "Feature selection recommended"
+    assert "wide and short" in recommendations.iloc[0]["rationale"].lower()
 
 
 def test_feature_advisor_build_prompt_includes_longitudinal_context(tmp_path):
@@ -232,6 +258,7 @@ def test_feature_advisor_build_prompt_includes_wide_and_short_context(tmp_path):
 
     assert "dataset structural type: wide and short" in prompt.lower()
     assert "feature selection methods" in prompt.lower()
+    assert "do not perform attribute-level featurization recommendations" in prompt.lower()
 
 
 def test_feature_advisor_parse_advice_accepts_dict_response(tmp_path):

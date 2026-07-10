@@ -38,6 +38,41 @@ def test_notebook_utils_returns_expected_paths(tmp_path):
     )
 
 
+def test_notebook_utils_omits_knee_curve_path_for_non_cross_sectional_datasets(tmp_path):
+    working_dir = str(tmp_path)
+    for dataset_type in ["wide and short", "longitudinal", "panel", "temporal"]:
+        config = {
+            "featurization_output_dir": "featurization",
+            "structural_type": dataset_type,
+        }
+        resolver = PathCoordinator(working_dir=working_dir, config=config)
+
+        artifact_paths = get_featurization_artifact_paths(resolver)
+
+        assert artifact_paths["featurized_dataset_path"].endswith(
+            os.path.join("data", "featurization", "featurized_data.csv")
+        )
+        assert artifact_paths["model_ready_dataset_path"].endswith(
+            os.path.join("data", "featurization", "model_ready_numeric_data.csv")
+        )
+        assert artifact_paths["feature_selection_knee_curve_path"] is None
+
+
+def test_notebook_utils_includes_knee_curve_path_for_cross_sectional(tmp_path):
+    working_dir = str(tmp_path)
+    config = {
+        "featurization_output_dir": "featurization",
+        "structural_type": "cross-sectional",
+    }
+    resolver = PathCoordinator(working_dir=working_dir, config=config)
+
+    artifact_paths = get_featurization_artifact_paths(resolver)
+
+    assert artifact_paths["feature_selection_knee_curve_path"].endswith(
+        os.path.join("data", "featurization", "feature_selection_knee_curve.png")
+    )
+
+
 def test_notebook_utils_reports_existing_file_status(tmp_path):
     working_dir = str(tmp_path)
     config = {

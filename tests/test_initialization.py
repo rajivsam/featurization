@@ -114,5 +114,22 @@ def test_initialize_config_normalizes_wide_and_short_structural_type(tmp_path):
     assert config["structural_type"] == "wide and short"
 
 
+def test_path_coordinator_strips_redundant_data_prefixes(tmp_path):
+    working_dir = str(tmp_path)
+    config = {
+        "featurization_output_dir": "data/data/featurization",
+        "dd_cleaner_output_dir": "data/data/dd_cleaner",
+        "metadata_file": "metadata.csv",
+        "featurization_input_data": "data.csv",
+    }
+
+    resolver = PathCoordinator(working_dir=working_dir, config=config)
+
+    assert resolver.featurized_dataset_path == os.path.join(working_dir, "data", "featurization", "featurized_data.csv")
+    assert resolver.model_ready_dataset_path == os.path.join(working_dir, "data", "featurization", "model_ready_numeric_data.csv")
+    assert resolver.metadata_path == os.path.join(working_dir, "data", "dd_cleaner", "metadata.csv")
+    assert resolver.featurization_input_path == os.path.join(working_dir, "data", "dd_cleaner", "data.csv")
+
+
 if __name__ == "__main__":
     test_workspace_init()

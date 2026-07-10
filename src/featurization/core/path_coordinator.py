@@ -54,10 +54,16 @@ class PathCoordinator:
         self.config = config
 
     def _remove_anchor_prefix(self, config_value: str, anchor: str) -> str:
-        """Removes the anchor prefix from a config value if it's already present."""
-        if config_value.startswith(anchor + os.sep):
-            return config_value.replace(anchor + os.sep, "", 1)
-        return config_value
+        """Removes one or more leading anchor prefixes from a config value."""
+        if not isinstance(config_value, str):
+            return config_value
+
+        normalized = config_value
+        while normalized.startswith(anchor + os.sep):
+            normalized = normalized[len(anchor + os.sep):]
+        if normalized == anchor:
+            return ""
+        return normalized
 
     @property
     def min_support_threshold(self) -> int:

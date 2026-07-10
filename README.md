@@ -93,15 +93,29 @@ pytest -q tests/test_sba_pipeline.py tests/test_survival_prep.py tests/test_surv
 - `documents/user_guide_cs_featurization.md`
 - `documents/survival_featurization_pipeline.md`
 
-## Documentation guidance
+## Package metadata API
+
+The package exposes `get_package_info()` for runtime discovery and orchestration clients. It returns a metadata dictionary containing:
+
+- `package_name`: `kmds-featurization`
+- `version`: package version from `featurization.__version__`
+- `entry_point`: the CLI entry point `featurization-cli`
+- `cli_commands`: available CLI subcommands such as `init`, `bootstrap`, `run`, and `advise`
+- `documentation_note`: note that installed packages do not include internal docs
+- `usage`: a dictionary with workflow guidance and repository guide links
+  - `cross_sectional_guide`: `documents/user_guide_cs_featurization.md`
+  - `survival_guide`: `documents/survival_featurization_pipeline.md`
+  - `guidance`: notes about feature selection and wide/short datasets
 
 The package no longer ships embedded documents in the installed distribution. Use the repository's top-level `documents/` folder for onboarding and implementation guidance.
 
-For package discovery, clients should use the package metadata API:
+Example:
 
 ```python
 from featurization import get_package_info
 
 info = get_package_info()
-print(info)
+print(info["version"])
+print(info["cli_commands"])
+print(info["usage"]["cross_sectional_guide"])
 ```
