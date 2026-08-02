@@ -41,7 +41,8 @@ def filter_binary_universe(
     if target_col not in data.columns:
         raise KeyError(f"Required target column '{target_col}' not found.")
 
-    return data.loc[data[target_col] != drop_class].copy()
+    # Exclude missing target values from the modeling universe.
+    return data.loc[data[target_col].notna() & (data[target_col] != drop_class)].copy()
 
 
 def validate_binary_target(

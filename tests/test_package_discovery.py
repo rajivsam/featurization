@@ -33,3 +33,20 @@ def test_client_onboarding_metadata():
     assert "cli_commands" in info
     assert set(["init", "bootstrap", "run", "advise"]).issubset(set(info["cli_commands"]))
     assert "documentation_note" in info
+
+
+def test_load_package_agents_documentation():
+    from featurization import load_package_agents_documentation
+
+    text = load_package_agents_documentation()
+    assert isinstance(text, str)
+    assert "Supported dataset types" in text
+    assert "Feature advisor service" in text
+
+
+def test_get_package_info_includes_agents_documentation():
+    info = get_package_info()
+    assert "agents_documentation" in info
+    assert isinstance(info["agents_documentation"], dict)
+    assert info["agents_documentation"]["package_resource"] == "AGENTS.md"
+    assert info["agents_documentation"]["loader"] == "featurization.utils.load_package_agents_documentation"

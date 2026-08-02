@@ -1,128 +1,140 @@
-# Agent Instructions
+# KMDS Featurization Package Interface
 
-This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
+This package provides the KMDS featurization framework for turning cleaned dataset inputs into model-ready feature datasets. It is focused on pipeline orchestration, stage contract consistency, leakage-safe modeling flow, and metadata-driven feature advice.
 
-> **Architecture in one line:** Issues live in a local Dolt database
-> (`.beads/dolt/`); cross-machine sync uses `bd dolt push/pull` (a
-> git-compatible protocol), stored under `refs/dolt/data` on your git
-> remote — separate from `refs/heads/*` where your code lives.
-> `.beads/issues.jsonl` is a passive export, not the wire protocol.
->
-> See [SYNC_CONCEPTS.md](https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md)
-> for the one-screen overview and anti-patterns (don't treat JSONL as the
-> source of truth; don't `bd import` during normal operation; don't
-> reach for third-party Dolt hosting before trying the default).
+## What this package supports
 
-## Quick Reference
+- Cross-sectional datasets with categorical and numerical feature assembly.
+- Temporal / event-log datasets used in survival and risk modeling.
+- Panel and longitudinal datasets through the structural type configuration.
+- Wide-and-short datasets as a supported structural type, with special guidance for feature selection.
+- Cleaned input data from `dd-parser-cleaner`, not raw dirty source files.
 
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work atomically
-bd close <id>         # Complete work
-bd dolt push          # Push beads data to remote
-```
+## Core design principles
 
-## Non-Interactive Shell Commands
+- **Stage contract:** every stage implements `method(context, stage_cfg) -> DataFrame`.
+- **Index-centric waterfall:** `record_id` is the universal anchor and each stage returns rows aligned to the current survivor universe.
+- **Immutable source data:** source CSV files are never modified by stage logic.
+- **Config-driven behavior:** all runtime action is driven from `featurizer_config.yaml` and `PathCoordinator` resolves paths.
+- **Leakage-safe flow:** fit artifacts only on train data, transform validation and active rows using train-fitted artifacts.
+- **Thin workspace wrappers:** `featurization_scripts/featurization.py` contains stage wrappers, while reusable logic lives in `src/tabular`.
+- **Aligned output schema:** the final merge stage projects modeled and active partitions into one aligned dataset and produces a numeric-only model-ready export.
 
-**ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
+## Supported dataset types
 
-Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
+This package is configured to support:
 
-**Use these forms instead:**
-```bash
-# Force overwrite without prompting
-cp -f source dest           # NOT: cp source dest
-mv -f source dest           # NOT: mv source dest
-rm -f file                  # NOT: rm file
+- `cross-sectional`
+- `longitudinal`
+- `panel`
+- `temporal` / event-log
+- `wide and short`
 
-# For recursive operations
-rm -rf directory            # NOT: rm -r directory
-cp -rf source dest          # NOT: cp -r source dest
-```
+The package is most mature for cross-sectional and event-log workflows, with explicit guidance for wide-and-short data and survival-oriented pipelines.
 
-**Other commands that may prompt:**
-- `scp` - use `-o BatchMode=yes` for non-interactive
-- `ssh` - use `-o BatchMode=yes` to fail instead of prompting
-- `apt-get` - use `-y` flag
-- `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
+## Client onboarding
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
-## Beads Issue Tracker
+Clients should onboard by:
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+1. Creating a workspace directory.
+2. Ensuring `featurizer_config.yaml` is present in the workspace root.
+3. Pointing `working_dir` to the workspace root or absolute data root.
+4. Providing a cleaned input file and metadata authority table from `dd-parser-cleaner`.
+5. Running the CLI commands below to initialize, bootstrap, and validate.
 
-### Quick Reference
+### Primary onboarding documents
 
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
-```
+- `documents/user_guide_cs_featurization.md` — cross-sectional usage and config examples.
+- `documents/survival_featurization_pipeline.md` — event-log and survival pipeline guidance.
+- `documents/path_coordinator_function.md` — path resolution and workspace layout.
+- `documents/config_blueprint.md` — configuration anchors and field definitions.
+- `documents/consolidated_featurization_design.md` — architecture and output semantics.
+- `documents/feature_advisor_service.md` — how the advisor works and how it uses metadata.
+- `documents/notebook_utils_usage.md` — notebook-based workspace discovery and artifact loading.
+- `documents/sba_pipeline_featurization.md` — current SBA pipeline inventory and stage semantics.
+- `documents/stash.md` — authoritative bootstrap context and guardrails.
 
-### Rules
+## CLI interface
 
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+This package exposes the following CLI entry point:
 
-**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
+- `featurization-cli init` — initialize a featurization workspace config.
+- `featurization-cli bootstrap` — generate a provisional starter configuration.
+- `featurization-cli run` — execute the configured featurization pipeline.
+- `featurization-cli advise` — generate feature-advisor recommendations from metadata.
+- `featurization-cli check` — verify if a named pipeline stage is configured.
+- `featurization-cli add-stage` — add a custom metadata-based stage to the pipeline.
 
-## Agent Context Profiles
+## Python interface
 
-The managed Beads block is task-tracking guidance, not permission to override repository, user, or orchestrator instructions.
+The package exports these Python interfaces:
 
-- **Conservative (default)**: Use `bd` for task tracking. Do not run git commits, git pushes, or Dolt remote sync unless explicitly asked. At handoff, report changed files, validation, and suggested next commands.
-- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same conservative git policy unless active instructions say otherwise.
-- **Team-maintainer**: Only when the repository explicitly opts in, agents may close beads, run quality gates, commit, and push as part of session close. A current "do not commit" or "do not push" instruction still wins.
+- `from featurization import get_package_info`
+- `from featurization import load_package_agents_documentation`
+- `from featurization import get_cli_command_names`
+- `from featurization import FeatureAdvisorUtil, FeatureAdvisorPromptConfig`
 
-## Session Completion
+### Runtime discovery
 
-This protocol applies when ending a Beads implementation workflow. It is subordinate to explicit user, repository, and orchestrator instructions.
+- `get_package_info()` returns package metadata, CLI commands, documentation pointers, and guidance.
+- `load_package_agents_documentation()` returns the contents of `AGENTS.md` from the installed package.
 
-1. **File issues for remaining work** - Create beads for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **Handle git/sync by active profile**:
-   ```bash
-   # Conservative/minimal/default: report status and proposed commands; wait for approval.
-   git status
+### Feature advisor service
 
-   # Team-maintainer opt-in only, unless current instructions forbid it:
-   git pull --rebase
-   bd dolt push
-   git push
-   git status
-   ```
-5. **Hand off** - Summarize changes, validation, issue status, and any blocked sync/commit/push step
+- Use `FeatureAdvisorUtil` and `FeatureAdvisorPromptConfig` to generate recommendations from dataset metadata.
+- The advisor prefers native categorical handling for CatBoost, XGBoost, and LightGBM.
+- When explicit encoding is needed, the advisor recommends low-count and hierarchical encoding strategies.
+- Prompt templates are packaged under `src/featurization/prompts/feature_advisor_prompt.yaml`.
 
-**Critical rules:**
-- Explicit user or orchestrator instructions override this Beads block.
-- Do not commit or push without clear authority from the active profile or the current user request.
-- If a required sync or push is blocked, stop and report the exact command and error.
-<!-- END BEADS INTEGRATION -->
+## Featurization inputs and metadata
 
-<!-- BEGIN BEADS CODEX SETUP: generated by bd setup codex -->
-## Beads Issue Tracker
+The package expects:
 
-Use Beads (`bd`) for durable task tracking in repositories that include it. Use the `beads` skill at `.agents/skills/beads/SKILL.md` (project install) or `~/.agents/skills/beads/SKILL.md` (global install) for Beads workflow guidance, then use the `bd` CLI for issue operations.
+- A cleaned dataset input file specified in `featurizer_config.yaml` under `featurization_input_data`.
+- A metadata table specified under `metadata_file`.
+- A `dd_cleaner_output_dir` where `dd-parser-cleaner` places `user_cleaned_output_filename` and metadata artifacts.
 
-### Quick Reference
+### dd-parser-cleaner notebook interface
 
-```bash
-bd ready                # Find available work
-bd show <id>            # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>           # Complete work
-bd prime                # Refresh Beads context
-```
+Clients may use the `dd-parser-cleaner` notebook interface to inspect dataset metadata and confirm inputs before featurization.
 
-### Rules
+- The package provides notebook helpers in `src/featurization/notebook_utils.py`.
+- These helpers resolve workspace paths and load metadata and cleaned input datasets.
+- Example notebook usage is provided in `notebooks/notebook_utils_cleaning_stage.ipynb`.
 
-- Use `bd` for all task tracking; do not create markdown TODO lists.
-- Run `bd prime` when Beads context is missing or stale. Codex 0.129.0+ can load Beads context automatically through native hooks; use `/hooks` to inspect or toggle them.
-- Keep persistent project memory in Beads via `bd remember`; do not create ad hoc memory files.
+## Featurization outputs
 
-**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
-<!-- END BEADS CODEX SETUP -->
+The package produces:
+
+- Consolidated `featurized_data.csv` with engineered features and dataset markers.
+- `model_ready_numeric_data.csv` containing numeric-only feature data for model training.
+- Optional feature-selection knee curve artifacts for cross-sectional workflows.
+- Feature advisor recommendation artifacts under the configured `featurization_output_dir`.
+
+## Design and package boundaries
+
+- Stage logic is implemented in `src/tabular` and should be reusable.
+- Workspace-specific wrappers remain in `featurization_scripts/featurization.py`.
+- The package does not own raw data cleaning; it consumes cleaned input produced by `dd-parser-cleaner`.
+- The package does not mutate original data files.
+
+## Package data exposure
+
+- `AGENTS.md` is packaged as a package resource and can be loaded at runtime.
+- Use `load_package_agents_documentation()` to read this file from an installed environment.
+- Clients can also consult `get_package_info()` for the package resource pointer.
+
+## Recommended client workflow
+
+1. Bootstrap or initialize the workspace config.
+2. Confirm `working_dir`, `metadata_file`, `featurization_input_data`, and `dd_cleaner_output_dir`.
+3. Use the notebook helpers if desired to preview metadata authority and cleaned dataset paths.
+4. Run `featurization-cli run --working-dir <workspace>`.
+5. Use `featurization-cli advise --working-dir <workspace> --model-intent <intent>` to obtain encoding guidance.
+6. Review outputs in `data/featurization` and confirm `model_ready_numeric_data.csv`.
+
+## Notes for package clients
+
+- This package is a KMDS featurization orchestration layer, not a general-purpose data cleaner.
+- It is best used alongside `dd-parser-cleaner` to provide the authoritative cleaned dataset and metadata inputs.
+- For dataset-specific implementation details, clients should read the documents in the `documents/` directory.

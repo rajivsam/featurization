@@ -1,4 +1,5 @@
 import os
+from importlib import resources
 import pandas as pd
 from typing import Any, Dict, List
 from featurization.core.path_coordinator import PathCoordinator
@@ -46,6 +47,16 @@ def get_entity_list(resolver: PathCoordinator) -> List[str]:
     return sorted([e for e in entities.unique() if e])
 
 
+def load_package_agents_documentation() -> str:
+    """Load the package's embedded AGENTS.md documentation."""
+    agents_md = resources.files("featurization").joinpath("AGENTS.md")
+    if not agents_md.exists():
+        raise FileNotFoundError(
+            "Package AGENTS.md resource not found in installed kmds-featurization package."
+        )
+    return agents_md.read_text(encoding="utf-8")
+
+
 def get_package_info() -> Dict[str, Any]:
     """Return package discovery metadata for clients."""
     from featurization import __version__ as package_version
@@ -73,5 +84,9 @@ def get_package_info() -> Dict[str, Any]:
                 "Feature selection is recommended for wide and short datasets. "
                 "This package does not provide a dedicated featurization pipeline for wide and short datasets."
             ),
+        },
+        "agents_documentation": {
+            "package_resource": "AGENTS.md",
+            "loader": "featurization.utils.load_package_agents_documentation",
         },
     }
