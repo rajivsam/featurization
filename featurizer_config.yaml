@@ -20,12 +20,37 @@ pipeline:
   - borrstate
   - borrzip
   - projectstate
+  - asofdate
+  - program
+  - bankncuanumber
+  - soldsecmrktind
+  - naicsdescription
+  - locationid
+  - approvalfy
+  - borrname
+  - paidinfulldate
+  - chargeoffdate
+  - grosschargeoffamount
+  - approvaldate
+  - firstdisbursementdate
 - name: Prepare Numerical Data
   method: prepare_numerical_data
   entity: numerical
   sub_filter: modeling
   drop_filter:
   - grosschargeoffamount
+  - asofdate
+  - program
+  - bankncuanumber
+  - soldsecmrktind
+  - naicsdescription
+  - locationid
+  - approvalfy
+  - borrname
+  - paidinfulldate
+  - chargeoffdate
+  - approvaldate
+  - firstdisbursementdate
 - name: Merge Categorical And Numerical
   method: merge_categorical_and_numerical
   entity: System
@@ -46,6 +71,19 @@ pipeline:
   - borrstate
   - borrzip
   - projectstate
+  - asofdate
+  - program
+  - bankncuanumber
+  - soldsecmrktind
+  - naicsdescription
+  - locationid
+  - approvalfy
+  - borrname
+  - paidinfulldate
+  - chargeoffdate
+  - grosschargeoffamount
+  - approvaldate
+  - firstdisbursementdate
 - name: Hierarchical NAICS Recoding
   method: hierarchical_low_count_var_encoding
   entity: categorical
@@ -68,14 +106,16 @@ pipeline:
   entity: System
   sub_filter: Loan
   target_col: loan_status_r
-  split_col: dataset_split
+  split_col: dataset_partition
+  legacy_split_col: dataset_split
   random_state: 42
+  test_size: 0.2
 - name: Target Encode Categoricals
   method: target_encode_categorical_vars
   entity: categorical
   sub_filter: modeling
   target_col: loan_status_r
-  split_col: dataset_split
+  split_col: dataset_partition
   output_suffix: _te
   exclude_cols:
   - loanstatus
@@ -85,6 +125,18 @@ pipeline:
   - borrzip
   - projectstate
   - grosschargeoffamount
+  - asofdate
+  - program
+  - bankncuanumber
+  - soldsecmrktind
+  - naicsdescription
+  - locationid
+  - approvalfy
+  - borrname
+  - paidinfulldate
+  - chargeoffdate
+  - approvaldate
+  - firstdisbursementdate
   exclude_name_patterns:
   - loan_status
 - name: Harmonize And Project Feature Space
@@ -92,7 +144,8 @@ pipeline:
   entity: System
   sub_filter: modeling
   target_col: loan_status_r
-  split_col: dataset_split
+  split_col: dataset_partition
+  legacy_split_col: dataset_split
   output_partition_col: dataset_partition
   min_unique: 2
   exclude_candidate_cols:
@@ -103,6 +156,18 @@ pipeline:
   - borrzip
   - projectstate
   - grosschargeoffamount
+  - asofdate
+  - program
+  - bankncuanumber
+  - soldsecmrktind
+  - naicsdescription
+  - locationid
+  - approvalfy
+  - borrname
+  - paidinfulldate
+  - chargeoffdate
+  - approvaldate
+  - firstdisbursementdate
   exclude_candidate_name_patterns:
   - loan_status
 - name: Merge Modeled And Active Partitions

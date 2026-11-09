@@ -76,11 +76,11 @@ def test_borrower_geo_pipeline_execution():
     assert "dataset_partition" in final_df.columns, "Column 'dataset_partition' missing from merge stage."
     partition_series = _col_as_series(final_df, "dataset_partition")
     partition_values = set(partition_series.dropna().unique().tolist())
-    assert partition_values.issubset({"modeled", "active"}), f"Unexpected partition values found: {partition_values}"
+    assert partition_values.issubset({"train", "validation", "test", "active"}), f"Unexpected partition values found: {partition_values}"
 
     # After filter stage, active class (-1) should be removed from modeling universe.
     modeled_target_values = set(
-        loan_status_series.loc[partition_series == "modeled"].dropna().unique().tolist()
+        loan_status_series.loc[partition_series.isin({"train", "validation", "test"})].dropna().unique().tolist()
     )
     assert modeled_target_values.issubset({0.0, 1.0}), f"Filtered modeling universe has unexpected labels: {modeled_target_values}"
 
@@ -107,7 +107,9 @@ def test_borrower_geo_pipeline_execution():
     )
     model_ready_df = pd.read_csv(resolver.model_ready_dataset_path, low_memory=False)
     non_numeric_cols = model_ready_df.select_dtypes(exclude=["number", "bool"]).columns.tolist()
-    assert not non_numeric_cols, f"Model-ready export contains non-numeric columns: {non_numeric_cols}"
+    allowed_non_numeric = {"dataset_partition", "dataset_split"}
+    unexpected_non_numeric = [c for c in non_numeric_cols if c not in allowed_non_numeric]
+    assert not unexpected_non_numeric, f"Model-ready export contains unexpected non-numeric columns: {unexpected_non_numeric}"
     
     print(f"✅ Single-stage pipeline success. Discovered columns: {[c for c in final_df.columns if 'borrower' in c or 'loan_status_r' in c]}")
 

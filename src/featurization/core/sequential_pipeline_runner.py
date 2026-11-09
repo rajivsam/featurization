@@ -179,8 +179,19 @@ class PipelineRunner:
         if last_stage_df is not None and not last_stage_df.empty:
             model_ready_df = last_stage_df.copy()
             if resolver.model_ready_numeric_only:
-                model_ready_df = model_ready_df.select_dtypes(include=["number", "bool"]).copy()
-
+                required_cols = [
+                    c for c in ["dataset_partition", "dataset_split", "loan_status_r", "record_id"]
+                    if c in model_ready_df.columns
+                ]
+                numeric_cols = [
+                    c for c in model_ready_df.columns
+                    if pd.api.types.is_numeric_dtype(model_ready_df[c]) or pd.api.types.is_bool_dtype(model_ready_df[c])
+                ]
+                model_ready_df = model_ready_df[list(dict.fromkeys(required_cols + numeric_cols))].copy()
+                object_label_cols = [c for c in ["dataset_partition", "dataset_split"] if c in model_ready_df.columns]
+                for c in object_label_cols:
+                    if model_ready_df[c].dtype == object:
+                        model_ready_df[c] = model_ready_df[c].astype("string")
             model_ready_df = model_ready_df.sort_index(ascending=True)
             model_ready_path = resolver.model_ready_dataset_path
             os.makedirs(os.path.dirname(model_ready_path), exist_ok=True)
