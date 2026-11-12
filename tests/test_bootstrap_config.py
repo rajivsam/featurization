@@ -172,3 +172,17 @@ def test_bootstrap_normalizes_wide_and_short_structural_type(tmp_path):
         config = yaml.safe_load(f)
 
     assert config["structural_type"] == "wide and short"
+
+
+def test_bootstrap_normalizes_task_type(tmp_path):
+    working_dir = tmp_path / "workspace_task"
+    config_path = bootstrap_provisional_config(
+        working_dir=str(working_dir),
+        task_type="regression",
+        overwrite=True,
+    )
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    assert config["task_type"] == "regression"

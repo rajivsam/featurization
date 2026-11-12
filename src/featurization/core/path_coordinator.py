@@ -1,6 +1,8 @@
 import os
 from typing import Dict, Any
 
+from featurization.core.task_registry import get_task_defaults, normalize_task_type
+
 VALID_STRUCTURAL_TYPES = {
     "cross-sectional": {
         "cross-sectional",
@@ -75,6 +77,16 @@ class PathCoordinator:
         """Returns the dataset structural type (cross-sectional, longitudinal, panel, temporal, or wide and short)."""
         structural_type = str(self.config.get("structural_type", "cross-sectional"))
         return normalize_structural_type(structural_type)
+
+    @property
+    def task_type(self) -> str:
+        """Returns the pipeline task family: classification, regression, time_to_event, or clustering."""
+        return normalize_task_type(self.config.get("task_type", "classification"))
+
+    @property
+    def task_defaults(self) -> Dict[str, Any]:
+        """Returns default pipeline semantics for the configured task type."""
+        return get_task_defaults(self.task_type)
 
     @property
     def validation_size(self) -> float:

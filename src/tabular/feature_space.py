@@ -1,9 +1,15 @@
 import pandas as pd
 import importlib
 import os
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    GradientBoostingRegressor,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
 
 from tabular.modeling_filter import drop_leakage_prone_columns
+from featurization.core.task_registry import normalize_task_type
 
 
 def infer_top_k_from_importances(
@@ -129,11 +135,20 @@ def _build_tree_selector(
     max_depth: int,
     subsample: float,
     random_state: int,
+    task_type: str = "classification",
 ):
-    """Builds a tree-based selector model from config values."""
+    """Builds a task-aware tree-based selector model from config values."""
     model_name = str(tree_model).lower().strip()
+    task_family = normalize_task_type(task_type)
 
     if model_name == "random_forest":
+        if task_family == "regression":
+            return RandomForestRegressor(
+                n_estimators=int(n_estimators),
+                max_depth=int(max_depth),
+                random_state=int(random_state),
+                n_jobs=-1,
+            )
         return RandomForestClassifier(
             n_estimators=int(n_estimators),
             max_depth=int(max_depth),
@@ -145,11 +160,24 @@ def _build_tree_selector(
         try:
             xgboost_module = importlib.import_module("xgboost")
             XGBClassifier = xgboost_module.XGBClassifier
+            XGBRegressor = xgboost_module.XGBRegressor
         except ImportError as exc:
             raise ImportError(
                 "FEATURE_SELECTION_TREE_MODEL is set to 'xgboost' but xgboost is not installed. "
                 "Install xgboost or set FEATURE_SELECTION_TREE_MODEL to 'gbm' or 'random_forest'."
             ) from exc
+
+        if task_family == "regression":
+            return XGBRegressor(
+                n_estimators=int(n_estimators),
+                learning_rate=float(learning_rate),
+                max_depth=int(max_depth),
+                subsample=float(subsample),
+                random_state=int(random_state),
+                objective="reg:squarederror",
+                eval_metric="rmse",
+                n_jobs=-1,
+            )
 
         return XGBClassifier(
             n_estimators=int(n_estimators),
@@ -162,6 +190,15 @@ def _build_tree_selector(
             n_jobs=-1,
         )
 
+    if task_family == "regression":
+        return GradientBoostingRegressor(
+            n_estimators=int(n_estimators),
+            learning_rate=float(learning_rate),
+            max_depth=int(max_depth),
+            subsample=float(subsample),
+            random_state=int(random_state),
+        )
+
     return GradientBoostingClassifier(
         n_estimators=int(n_estimators),
         learning_rate=float(learning_rate),
@@ -169,6 +206,59 @@ def _build_tree_selector(
         subsample=float(subsample),
         random_state=int(random_state),
     )
+
+
+def _select_variance_features(
+    safe_train_df: pd.DataFrame,
+    eligible: list[str],
+    min_non_null_rate: float,
+    top_k: int,
+    top_k_mode: str,
+    top_k_min: int,
+    top_k_min_ratio: float,
+    min_feature_count: int,
+    top_k_max: int,
+    target_feature_count: int,
+    kneedle_sensitivity: float,
+    kneedle_curve: str,
+    kneedle_direction: str,
+    require_kneedle: bool,
+    importance_floor: float,
+    diagnostics_out: dict | None = None,
+) -> list[str]:
+    """Select features by variance for unsupervised and clustering tasks."""
+    if not eligible:
+        return []
+
+    variances = safe_train_df[eligible].var(skipna=True, numeric_only=False).fillna(0.0)
+    importances = variances.sort_values(ascending=False)
+    filtered = importances[importances > float(importance_floor)]
+    if filtered.empty:
+        filtered = importances
+
+    k = infer_top_k_from_importances(
+        importances=filtered,
+        mode=top_k_mode,
+        fixed_top_k=top_k,
+        min_k=top_k_min,
+        min_ratio=top_k_min_ratio,
+        min_feature_count=min_feature_count,
+        max_k=top_k_max,
+        target_feature_count=target_feature_count,
+        kneedle_sensitivity=kneedle_sensitivity,
+        kneedle_curve=kneedle_curve,
+        kneedle_direction=kneedle_direction,
+        require_kneedle=require_kneedle,
+    )
+    if k > 0:
+        filtered = filtered.head(int(k))
+
+    if diagnostics_out is not None:
+        diagnostics_out["importance_series"] = importances.copy()
+        diagnostics_out["filtered_importance_series"] = filtered.copy()
+        diagnostics_out["selected_k"] = int(k)
+
+    return filtered.index.tolist()
 
 
 def select_model_features(
@@ -198,17 +288,23 @@ def select_model_features(
     kneedle_direction: str = "decreasing",
     require_kneedle: bool = False,
     diagnostics_out: dict | None = None,
+    task_type: str = "classification",
 ) -> list[str]:
-    """Selects model features using threshold or tree-ensemble importance."""
+    """Selects model features using task-aware logic for classification, regression, and clustering."""
     if train_df is None or train_df.empty:
         return []
-    if target_col not in train_df.columns:
+
+    task_family = normalize_task_type(task_type)
+    if task_family == "clustering" and target_col in train_df.columns:
+        target_col = target_col
+
+    if task_family in {"classification", "regression", "time_to_event"} and target_col not in train_df.columns:
         raise KeyError(f"Required target column '{target_col}' not found in train data.")
 
     safe_train_df = drop_leakage_prone_columns(
         data=train_df,
         patterns=exclude_candidate_name_patterns,
-        keep_cols=[target_col],
+        keep_cols=[target_col] if target_col in train_df.columns else [],
     )
 
     eligible: list[str] = []
@@ -229,11 +325,35 @@ def select_model_features(
         return []
 
     selection_method = str(method).lower().strip()
+    if task_family == "clustering":
+        return _select_variance_features(
+            safe_train_df=safe_train_df,
+            eligible=eligible,
+            min_non_null_rate=min_non_null_rate,
+            top_k=top_k,
+            top_k_mode=top_k_mode,
+            top_k_min=top_k_min,
+            top_k_min_ratio=top_k_min_ratio,
+            min_feature_count=min_feature_count,
+            top_k_max=top_k_max,
+            target_feature_count=target_feature_count,
+            kneedle_sensitivity=kneedle_sensitivity,
+            kneedle_curve=kneedle_curve,
+            kneedle_direction=kneedle_direction,
+            require_kneedle=require_kneedle,
+            importance_floor=importance_floor,
+            diagnostics_out=diagnostics_out,
+        )
+
     if selection_method != "tree_ensemble":
         return eligible
 
     X = _encode_for_tree_model(safe_train_df, eligible)
-    y = pd.to_numeric(safe_train_df[target_col], errors="coerce").fillna(0).astype(int)
+    y = pd.to_numeric(safe_train_df[target_col], errors="coerce")
+    if task_family == "regression":
+        y = y.fillna(0.0)
+    else:
+        y = y.fillna(0).astype(int)
 
     selector = _build_tree_selector(
         tree_model=tree_model,
@@ -242,6 +362,7 @@ def select_model_features(
         max_depth=tree_max_depth,
         subsample=tree_subsample,
         random_state=tree_random_state,
+        task_type=task_family,
     )
     selector.fit(X, y)
 

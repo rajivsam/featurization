@@ -114,6 +114,25 @@ def test_initialize_config_normalizes_wide_and_short_structural_type(tmp_path):
     assert config["structural_type"] == "wide and short"
 
 
+def test_initialize_config_normalizes_task_type(tmp_path):
+    working_dir = tmp_path / "workspace_task"
+    metadata_file = "metadata.csv"
+    data_file = "data.csv"
+
+    initialize_config(
+        working_dir=str(working_dir),
+        metadata_file=metadata_file,
+        data_file=data_file,
+        task_type="time to event",
+    )
+
+    config_path = os.path.join(str(working_dir), "featurizer_config.yaml")
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    assert config["task_type"] == "time_to_event"
+
+
 def test_path_coordinator_strips_redundant_data_prefixes(tmp_path):
     working_dir = str(tmp_path)
     config = {

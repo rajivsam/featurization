@@ -56,6 +56,11 @@ def main():
         default="cross-sectional",
         help="The structural type of the dataset (cross-sectional, longitudinal, panel, temporal, or wide and short)."
     )
+    init_parser.add_argument(
+        "--task-type",
+        default="classification",
+        help="The pipeline task family: classification, regression, time_to_event, or clustering."
+    )
 
     # --- Add-Stage Command ---
     add_parser = subparsers.add_parser("add-stage", help="Add a custom stage to the pipeline.")
@@ -98,6 +103,11 @@ def main():
         choices=["cross-sectional", "longitudinal", "panel", "temporal", "wide and short"],
         default="cross-sectional",
         help="Structural type placeholder for the starter config."
+    )
+    bootstrap_parser.add_argument(
+        "--task-type",
+        default="classification",
+        help="Task family placeholder for the starter config: classification, regression, time_to_event, or clustering."
     )
     bootstrap_parser.add_argument(
         "--overwrite",
@@ -186,10 +196,11 @@ def main():
                 print(f"❌ Error: Provided working directory does not exist: {args.working_dir}")
                 sys.exit(1)
             initialize_config(
-                args.working_dir, 
-                args.metadata_file, 
-                args.data_file, 
-                args.structural_type
+                args.working_dir,
+                args.metadata_file,
+                args.data_file,
+                args.structural_type,
+                task_type=args.task_type,
             )
             print("✅ Initialization Complete.")
             return
@@ -203,6 +214,7 @@ def main():
                     metadata_file=args.metadata_file,
                     data_file=args.data_file,
                     structural_type=args.structural_type,
+                    task_type=args.task_type,
                     config_name=args.config_name,
                     overwrite=args.overwrite,
                 )

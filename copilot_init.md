@@ -2,15 +2,15 @@
 
 Copy/paste this at the start of a new session:
 
-Please initialize from documents/stash.md first, then read documents/sba_pipeline_featurization.md.
+Please initialize from documents/stash.md first, then read the active package workflow document(s) relevant to the current project.
 Treat documents/stash.md as the authoritative bootstrap context.
 Do not use any docs under documents/discarded.
 
 Confirm before coding:
 
-1. Current pipeline stage inventory
+1. Current pipeline stage inventory for the active workflow
 2. Stage contract: method(context, stage_cfg) -> DataFrame
-3. Two-repo workflow (package repo vs SBA workspace repo)
+3. Package-vs-workspace workflow split for the active project
 
 Execution requirements:
 

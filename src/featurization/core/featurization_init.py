@@ -2,28 +2,40 @@ import os
 import yaml
 
 from featurization.core.path_coordinator import normalize_structural_type
+from featurization.core.task_registry import get_default_pipeline, normalize_task_type
 
 
-def initialize_config(working_dir: str, metadata_file: str, data_file: str, structural_type: str = "cross-sectional", config_name: str = "featurizer_config.yaml"):
+def initialize_config(
+    working_dir: str,
+    metadata_file: str,
+    data_file: str,
+    structural_type: str = "cross-sectional",
+    task_type: str = "classification",
+    config_name: str = "featurizer_config.yaml",
+):
     """
-    Bootstraps a new featurization workspace by persisting key project anchors 
+    Bootstraps a new featurization workspace by persisting key project anchors
     from dd-parser-cleaner into the featurizer_config.yaml.
     """
     abs_working_dir = os.path.abspath(working_dir)
     config_path = os.path.join(abs_working_dir, config_name)
     structural_type = normalize_structural_type(structural_type)
+    task_type = normalize_task_type(task_type)
 
-    # 1. Load existing config if available (check target path or current directory)
+    # 1. Load an existing config only from the target workspace, not from the repo root.
     existing_config = {}
-    search_path = config_path if os.path.exists(config_path) else config_name
-    if os.path.exists(search_path):
-        with open(search_path, "r") as f:
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
             existing_config = yaml.safe_load(f) or {}
 
     # 2. Define final config, preferring existing values for non-anchor settings
+    selected_pipeline = existing_config.get("pipeline")
+    if not selected_pipeline:
+        selected_pipeline = get_default_pipeline(task_type)
+
     final_config = {
         "working_dir": abs_working_dir,
-        "pipeline": existing_config.get("pipeline", []), # New pipeline structure
+        "pipeline": selected_pipeline,
         "metadata_file": metadata_file,
         "dd_cleaner_output_dir": existing_config.get("dd_cleaner_output_dir", "dd_cleaner"),
         "featurization_input_data": existing_config.get("featurization_input_data", data_file),
@@ -33,10 +45,11 @@ def initialize_config(working_dir: str, metadata_file: str, data_file: str, stru
         "model_ready_data_file": existing_config.get("model_ready_data_file", "model_ready_numeric_data.csv"),
         "feat_doc_directory": existing_config.get("feat_doc_directory", "featurization_docs"),
         "entity_assignment_output": existing_config.get("entity_assignment_output", "entity_assignments.md"),
-        "script_dir": existing_config.get("script_dir", "featurization_scripts"), # New script directory key
-        "script_name": existing_config.get("script_name", "featurization.py"),   # New script file name key
+        "script_dir": existing_config.get("script_dir", "featurization_scripts"),  # New script directory key
+        "script_name": existing_config.get("script_name", "featurization.py"),  # New script file name key
         "country_code": existing_config.get("country_code", "us"),
         "structural_type": structural_type,
+        "task_type": normalize_task_type(existing_config.get("task_type", task_type)),
         "VALIDATION_SIZE": existing_config.get("VALIDATION_SIZE", 0.2),
         "FEATURE_SELECTION_MIN_NON_NULL_RATE": existing_config.get(
             "FEATURE_SELECTION_MIN_NON_NULL_RATE", 0.01
@@ -123,6 +136,7 @@ def bootstrap_provisional_config(
     metadata_file: str = "your_metadata.csv",
     data_file: str = "your_cleaned_data.csv",
     structural_type: str = "cross-sectional",
+    task_type: str = "classification",
     config_name: str = "provisional_featurization_config.yaml",
     overwrite: bool = False,
 ) -> str:
@@ -131,17 +145,32 @@ def bootstrap_provisional_config(
     os.makedirs(abs_working_dir, exist_ok=True)
     config_path = os.path.join(abs_working_dir, config_name)
     structural_type = normalize_structural_type(structural_type)
+    task_type = normalize_task_type(task_type)
 
     if os.path.exists(config_path) and not overwrite:
         raise FileExistsError(
             f"Provisional config already exists: {config_path}. Use overwrite=True to replace it."
         )
 
+    starter_pipeline = get_default_pipeline(task_type)
+    pipeline_lines = ["pipeline:"]
+    for stage in starter_pipeline:
+        pipeline_lines.append("  - name: \"{name}\"".format(name=stage.get("name", "Custom Stage")))
+        pipeline_lines.append("    method: \"{method}\"".format(method=stage.get("method", "example_feature_stage")))
+        pipeline_lines.append("    entity: \"{entity}\"".format(entity=stage.get("entity", "System")))
+        pipeline_lines.append("    sub_filter: \"{sub_filter}\"".format(sub_filter=stage.get("sub_filter", "example")))
+        for key in ["target_col", "split_col", "duration_col", "event_col", "allow_new_indices"]:
+            if key in stage:
+                pipeline_lines.append(f"    {key}: {yaml.safe_dump(stage[key], default_flow_style=True).strip()}")
+
+    pipeline_block = "\n".join(pipeline_lines)
+
     template = f"""# Provisional featurization starter config
 # Update the anchors and pipeline definitions for your project.
 
 working_dir: "{abs_working_dir}"
 structural_type: "{structural_type}"
+task_type: "{task_type}"
 country_code: "us"
 
 # Where cleaned data is written by your upstream preprocessing flow
@@ -186,13 +215,9 @@ FEATURE_SELECTION_TREE_RANDOM_STATE: 42
 MODEL_READY_NUMERIC_ONLY: true
 OLLAMA_MODEL: "llama3.2:latest"
 
-# Pipeline: ordered list of stage dictionaries
-pipeline:
-  - name: "Example Feature Stage"
-    method: "example_feature_stage"
-    entity: "System"
-    sub_filter: "example"
-    allow_new_indices: false
+# Task-specific starter pipeline.
+# Replace or extend these stage wrappers in your workspace script.
+{pipeline_block}
 """
 
     with open(config_path, "w", encoding="utf-8") as f:
